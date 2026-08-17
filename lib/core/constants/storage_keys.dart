@@ -6,6 +6,12 @@ abstract final class StorageKeys {
   /// Secure Storage key for the master encryption key derived via PBKDF2/Argon2
   static const String masterKeyStorageKey = 'passkeep_master_key';
 
+  /// Secure Storage key for the master PIN salt
+  static const String masterPinSaltKey = 'passkeep_master_pin_salt';
+
+  /// Secure Storage key for the master PIN verification hash
+  static const String masterPinHashKey = 'passkeep_master_pin_hash';
+
   /// Secure Storage key for biometric auth token / state
   static const String biometricTokenKey = 'passkeep_biometric_token';
 
