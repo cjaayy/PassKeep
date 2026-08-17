@@ -1,5 +1,5 @@
 /// Base failure class for domain and data layer error handling
-abstract class Failure {
+abstract class Failure implements Exception {
   final String message;
   const Failure(this.message);
 
@@ -8,7 +8,15 @@ abstract class Failure {
 }
 
 class SecurityFailure extends Failure {
-  const SecurityFailure([super.message = 'Security or encryption operation failed']);
+  const SecurityFailure([super.message = 'Security or cryptographic operation failed']);
+}
+
+class EncryptionFailure extends Failure {
+  const EncryptionFailure([super.message = 'Failed to encrypt data']);
+}
+
+class DecryptionFailure extends Failure {
+  const DecryptionFailure([super.message = 'Failed to decrypt data. Invalid key, corrupted payload, or tampered IV.']);
 }
 
 class DatabaseFailure extends Failure {
