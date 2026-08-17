@@ -30,3 +30,8 @@ class AuthFailure extends Failure {
 class SyncFailure extends Failure {
   const SyncFailure([super.message = 'Cloud synchronization failed']);
 }
+
+class BackupFailure extends Failure {
+  const BackupFailure([super.message = 'Backup or restore operation failed']);
+}
+

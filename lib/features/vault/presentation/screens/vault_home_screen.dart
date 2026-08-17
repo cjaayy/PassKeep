@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../data/models/vault_item.dart';
 import '../providers/vault_providers.dart';
@@ -110,6 +111,17 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               tooltip: 'Sync with Cloud',
               onPressed: syncState.isSyncing ? null : _handleSync,
             ),
+          ),
+          // Settings & Backups Button
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+            tooltip: 'Settings & Backups',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
           ),
           // Lock Vault Button
           IconButton(
