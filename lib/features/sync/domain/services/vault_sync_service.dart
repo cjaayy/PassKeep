@@ -125,4 +125,27 @@ class VaultSyncService {
       return SyncResult.failure('Sync failed: ${e.toString()}');
     }
   }
+
+  /// Migrates and associates local offline vault records with an authenticated Supabase user.
+  ///
+  /// Marks all local items as unsynced so that the subsequent bidirectional sync
+  /// pushes them to the user's remote cloud database.
+  Future<SyncResult> migrateLocalVaultToUser(String userId) async {
+    try {
+      final localItems = await _localDataSource.getAllVaultItems();
+
+      // Mark all local records as unsynced so they get pushed to the newly authenticated cloud account
+      for (final item in localItems) {
+        await _localDataSource.saveVaultItem(item.copyWith(isSynced: false));
+      }
+
+      // Execute full bidirectional sync
+      return await sync();
+    } catch (e) {
+      if (e is Failure) {
+        return SyncResult.failure(e.message);
+      }
+      return SyncResult.failure('Vault migration failed: ${e.toString()}');
+    }
+  }
 }

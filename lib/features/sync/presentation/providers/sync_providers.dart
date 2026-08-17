@@ -113,6 +113,33 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
     return result;
   }
+
+  /// Migrates local vault items to a newly authenticated cloud user and syncs immediately.
+  Future<SyncResult> migrateAndSync(String userId) async {
+    state = state.copyWith(isSyncing: true, errorMessage: null);
+
+    final result = await _syncService.migrateLocalVaultToUser(userId);
+
+    if (result.isSuccess) {
+      state = state.copyWith(
+        isSyncing: false,
+        lastSyncedAt: result.syncedAt,
+        lastSyncedCount: result.totalChanges,
+        isSuccess: true,
+        errorMessage: null,
+      );
+
+      _ref?.read(vaultNotifierProvider.notifier).loadVaultItems();
+    } else {
+      state = state.copyWith(
+        isSyncing: false,
+        isSuccess: false,
+        errorMessage: result.errorMessage,
+      );
+    }
+
+    return result;
+  }
 }
 
 /// Provider for [SyncNotifier]

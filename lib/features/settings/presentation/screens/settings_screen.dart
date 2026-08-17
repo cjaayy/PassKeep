@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/backup_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../auth/presentation/providers/supabase_auth_providers.dart';
+import '../../../auth/presentation/widgets/supabase_auth_sheet.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../../vault/presentation/providers/vault_providers.dart';
 
@@ -103,9 +105,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  void _openAuthSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const SupabaseAuthSheet(),
+    );
+  }
+
+  Future<void> _confirmSignOut() async {
+    final shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Sign Out from Cloud?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Your local encrypted vault will remain accessible on this device with your Master PIN, but cloud sync will be paused.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSignOut == true && mounted) {
+      await ref.read(supabaseUserProvider.notifier).signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Signed out from Supabase cloud.'),
+            backgroundColor: Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
+    final userState = ref.watch(supabaseUserProvider);
     final syncState = ref.watch(syncNotifierProvider);
 
     return Scaffold(
@@ -121,6 +171,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         children: [
+          // Section: Account & Cloud Sync
+          _buildSectionHeader('Account & Cloud Sync'),
+          _buildCard(
+            children: [
+              if (!userState.isAuthenticated) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.cloud_off_rounded, color: Color(0xFF38BDF8)),
+                  ),
+                  title: const Text(
+                    'Local Vault (Offline)',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Sign in to sync your vault to Supabase Cloud',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  trailing: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    onPressed: _openAuthSheet,
+                    child: const Text('Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ] else ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.account_circle_rounded, color: Color(0xFF10B981)),
+                  ),
+                  title: Text(
+                    userState.email ?? 'Cloud Account',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Connected to Supabase Cloud',
+                    style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w500),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
+                    tooltip: 'Sign Out',
+                    onPressed: _confirmSignOut,
+                  ),
+                ),
+                const Divider(color: Color(0xFF334155), height: 1),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.cloud_sync_rounded, color: Color(0xFF10B981)),
+                  ),
+                  title: const Text('Cloud Synchronization', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    syncState.lastSyncedAt != null
+                        ? 'Last synced: ${syncState.lastSyncedAt!.toLocal().toString().split('.').first}'
+                        : 'Not synchronized yet',
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  trailing: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: const Color(0xFF10B981),
+                      elevation: 0,
+                      side: const BorderSide(color: Color(0xFF10B981), width: 1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    icon: syncState.isSyncing
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)))
+                        : const Icon(Icons.sync_rounded, size: 16),
+                    label: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: syncState.isSyncing ? null : _handleSync,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 20),
+
           // Section: Vault Data Transfer
           _buildSectionHeader('Data Transfer & Backups'),
           _buildCard(
@@ -214,46 +360,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ref.read(authNotifierProvider.notifier).lockVault();
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Section: Cloud Synchronization
-          _buildSectionHeader('Cloud Synchronization'),
-          _buildCard(
-            children: [
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.cloud_sync_rounded, color: Color(0xFF10B981)),
-                ),
-                title: const Text('Supabase Cloud Sync', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: Text(
-                  syncState.lastSyncedAt != null
-                      ? 'Last synced: ${syncState.lastSyncedAt!.toLocal().toString().split('.').first}'
-                      : 'Not synchronized yet',
-                  style: const TextStyle(color: Colors.white60, fontSize: 12),
-                ),
-                trailing: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E293B),
-                    foregroundColor: const Color(0xFF10B981),
-                    elevation: 0,
-                    side: const BorderSide(color: Color(0xFF10B981), width: 1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  icon: syncState.isSyncing
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)))
-                      : const Icon(Icons.sync_rounded, size: 16),
-                  label: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  onPressed: syncState.isSyncing ? null : _handleSync,
-                ),
               ),
             ],
           ),
