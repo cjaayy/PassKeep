@@ -91,10 +91,15 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
 
     try {
       final encryptionService = ref.read(encryptionServiceProvider);
+      final itemIv = encryptionService.generateRandomIv();
 
-      final encUser = encryptionService.encrypt(_usernameController.text.trim());
+      final encUser = encryptionService.encrypt(
+        _usernameController.text.trim(),
+        customIvBase64: itemIv,
+      );
       final encPass = encryptionService.encrypt(
         _passwordController.text,
+        customIvBase64: itemIv,
       );
 
       final itemToSave = VaultItem(
@@ -102,7 +107,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         title: _titleController.text.trim(),
         usernameEncrypted: encUser.cipherTextBase64,
         passwordEncrypted: encPass.cipherTextBase64,
-        iv: encPass.ivBase64,
+        iv: itemIv,
         category: _selectedCategory,
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         isSynced: false, // Mark unsynced so bidirectional sync engine pushes it

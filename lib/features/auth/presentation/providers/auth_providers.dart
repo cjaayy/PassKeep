@@ -16,27 +16,33 @@ class AuthState {
   final AuthStatus status;
   final bool isBiometricsAvailable;
   final String? errorMessage;
+  final String? masterKey;
 
   const AuthState({
     required this.status,
     this.isBiometricsAvailable = false,
     this.errorMessage,
+    this.masterKey,
   });
 
   const AuthState.initial()
       : status = AuthStatus.loading,
         isBiometricsAvailable = false,
-        errorMessage = null;
+        errorMessage = null,
+        masterKey = null;
 
   AuthState copyWith({
     AuthStatus? status,
     bool? isBiometricsAvailable,
     String? errorMessage,
+    String? masterKey,
+    bool clearMasterKey = false,
   }) {
     return AuthState(
       status: status ?? this.status,
       isBiometricsAvailable: isBiometricsAvailable ?? this.isBiometricsAvailable,
       errorMessage: errorMessage,
+      masterKey: clearMasterKey ? null : (masterKey ?? this.masterKey),
     );
   }
 
@@ -120,6 +126,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       state = state.copyWith(
         status: AuthStatus.authenticated,
+        masterKey: masterKey,
         errorMessage: null,
       );
       return true;
@@ -156,6 +163,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       state = state.copyWith(
         status: AuthStatus.authenticated,
+        masterKey: masterKey,
         errorMessage: null,
       );
       return true;
@@ -181,8 +189,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (authenticated) {
         final masterKey = await _encryptionService.loadMasterKeyFromStorage();
         if (masterKey != null && masterKey.isNotEmpty) {
+          _encryptionService.setActiveKey(masterKey);
           state = state.copyWith(
             status: AuthStatus.authenticated,
+            masterKey: masterKey,
             errorMessage: null,
           );
           return true;
@@ -205,7 +215,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Locks the vault and clears active keys from memory
   void lockVault() {
     _encryptionService.clearActiveKey();
-    state = state.copyWith(status: AuthStatus.locked, errorMessage: null);
+    state = state.copyWith(
+      status: AuthStatus.locked,
+      errorMessage: null,
+      clearMasterKey: true,
+    );
   }
 }
 

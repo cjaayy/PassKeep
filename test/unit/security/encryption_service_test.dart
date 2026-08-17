@@ -310,5 +310,57 @@ Line 3: Special characters: `~!@#\$%^&*()_+=-{}[]:;"'<>,.?/
       expect(encryptionService.hasActiveKey, isFalse);
       expect(mockStorage.containsKey(StorageKeys.masterKeyStorageKey), isFalse);
     });
+
+    test('should support multi-field encryption with single shared IV and decrypt cleanly', () {
+      final sharedIv = encryptionService.generateRandomIv();
+      const username = 'admin@example.com';
+      const password = 'SuperSecretVaultPassword99!';
+
+      final encUser = encryptionService.encrypt(username, customIvBase64: sharedIv);
+      final encPass = encryptionService.encrypt(password, customIvBase64: sharedIv);
+
+      expect(encUser.ivBase64, equals(sharedIv));
+      expect(encPass.ivBase64, equals(sharedIv));
+
+      final decryptedUser = encryptionService.decrypt(
+        cipherTextBase64: encUser.cipherTextBase64,
+        ivBase64: sharedIv,
+      );
+      final decryptedPass = encryptionService.decrypt(
+        cipherTextBase64: encPass.cipherTextBase64,
+        ivBase64: sharedIv,
+      );
+
+      expect(decryptedUser, equals(username));
+      expect(decryptedPass, equals(password));
+    });
+
+    test('end-to-end lifecycle: PBKDF2 derivation -> item encryption -> item decryption', () {
+      const pin = '654321';
+      final salt = KeyDerivation.generateRandomSalt(16);
+      final derivedKey = KeyDerivation.deriveKey256(password: pin, salt: salt);
+
+      final service = EncryptionService(secureStorage: const FlutterSecureStorage());
+      service.setActiveKey(derivedKey);
+
+      final itemIv = service.generateRandomIv();
+      const testEmail = 'john.doe@company.org';
+      const testSecret = 'P@\$\$w0rd#2026_Vault';
+
+      final encEmail = service.encrypt(testEmail, customIvBase64: itemIv);
+      final encSecret = service.encrypt(testSecret, customIvBase64: itemIv);
+
+      final decEmail = service.decrypt(
+        cipherTextBase64: encEmail.cipherTextBase64,
+        ivBase64: itemIv,
+      );
+      final decSecret = service.decrypt(
+        cipherTextBase64: encSecret.cipherTextBase64,
+        ivBase64: itemIv,
+      );
+
+      expect(decEmail, equals(testEmail));
+      expect(decSecret, equals(testSecret));
+    });
   });
 }

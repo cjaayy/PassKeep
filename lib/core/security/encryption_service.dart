@@ -32,13 +32,20 @@ class EncryptionService {
     _activeKeyBase64 = keyBase64;
   }
 
-  /// Encrypts [plainText] using AES-256-CBC with PKCS7 padding and a freshly generated 16-byte IV.
+  /// Generates a cryptographically secure 16-byte random IV encoded as Base64.
+  String generateRandomIv() {
+    return IV.fromSecureRandom(16).base64;
+  }
+
+  /// Encrypts [plainText] using AES-256-CBC with PKCS7 padding and a 16-byte IV.
   ///
   /// Uses [customKeyBase64] if provided, otherwise falls back to the in-memory active key.
+  /// Uses [customIvBase64] if provided, otherwise generates a fresh random 16-byte IV.
   /// Returns an [EncryptionResult] containing the Base64 ciphertext and Base64 IV.
   EncryptionResult encrypt(
     String plainText, {
     String? customKeyBase64,
+    String? customIvBase64,
   }) {
     final keyString = customKeyBase64 ?? _activeKeyBase64;
     if (keyString == null || keyString.isEmpty) {
@@ -47,7 +54,9 @@ class EncryptionService {
 
     try {
       final key = Key.fromBase64(keyString);
-      final iv = IV.fromSecureRandom(16);
+      final iv = customIvBase64 != null
+          ? IV.fromBase64(customIvBase64)
+          : IV.fromSecureRandom(16);
       final encrypter = Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
 
       final encrypted = encrypter.encrypt(plainText, iv: iv);
