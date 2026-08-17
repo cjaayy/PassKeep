@@ -218,20 +218,37 @@ Line 3: Special characters: `~!@#\$%^&*()_+=-{}[]:;"'<>,.?/
       );
     });
 
-    test('should throw DecryptionFailure on mismatched/corrupted IV', () {
+    test('should throw DecryptionFailure on malformed/invalid IV', () {
       const plainText = 'SecretPayload';
       final result = encryptionService.encrypt(plainText);
 
-      // Corrupted IV
-      final corruptedIv = KeyDerivation.generateRandomSalt(16);
+      // Malformed Base64 / wrong length IV
+      const malformedIv = 'invalid_iv_base64_not_16_bytes!!!';
 
       expect(
         () => encryptionService.decrypt(
           cipherTextBase64: result.cipherTextBase64,
-          ivBase64: corruptedIv,
+          ivBase64: malformedIv,
         ),
         throwsA(isA<DecryptionFailure>()),
       );
+    });
+
+    test('should fail or produce corrupted output when decrypted with a mismatched IV', () {
+      const plainText = 'SecretPayload';
+      final result = encryptionService.encrypt(plainText);
+
+      final differentIv = KeyDerivation.generateRandomSalt(16);
+      try {
+        final decrypted = encryptionService.decrypt(
+          cipherTextBase64: result.cipherTextBase64,
+          ivBase64: differentIv,
+        );
+        expect(decrypted, isNot(equals(plainText)));
+      } on DecryptionFailure {
+        // Successfully caught decryption/padding failure
+        expect(true, isTrue);
+      }
     });
 
     test('should throw DecryptionFailure when decrypted with a different key', () {

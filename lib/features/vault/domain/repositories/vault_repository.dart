@@ -5,6 +5,12 @@ abstract class IVaultRepository {
   /// Fetches all stored vault items from the local database.
   Future<List<VaultItem>> getAllVaultItems();
 
+  /// Fetches vault items with optional category filtering and search query filtering.
+  Future<List<VaultItem>> getVaultItemsFiltered({
+    String? category,
+    String? searchQuery,
+  });
+
   /// Gets a specific vault item by its unique ID.
   Future<VaultItem?> getVaultItemById(String id);
 
