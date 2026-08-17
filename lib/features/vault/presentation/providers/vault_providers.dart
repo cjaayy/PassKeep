@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../sync/data/datasources/vault_remote_datasource.dart';
+import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../data/datasources/vault_local_datasource.dart';
 import '../../data/models/vault_item.dart';
 import '../../data/repositories/vault_repository_impl.dart';
@@ -19,9 +21,13 @@ final vaultRepositoryProvider = Provider<IVaultRepository>((ref) {
 /// StateNotifier managing reactive Vault operations and dynamic filtering
 class VaultNotifier extends StateNotifier<VaultState> {
   final IVaultRepository _repository;
+  final IVaultRemoteDataSource? _remoteDataSource;
 
-  VaultNotifier({required IVaultRepository repository})
-      : _repository = repository,
+  VaultNotifier({
+    required IVaultRepository repository,
+    IVaultRemoteDataSource? remoteDataSource,
+  })  : _repository = repository,
+        _remoteDataSource = remoteDataSource,
         super(const VaultState.initial());
 
   /// Fetches all vault items from the repository and applies current active filters.
@@ -62,10 +68,19 @@ class VaultNotifier extends StateNotifier<VaultState> {
     }
   }
 
-  /// Deletes a [VaultItem] by [id] and refreshes state.
+  /// Deletes a [VaultItem] by [id] from local storage AND remote Supabase, then refreshes state.
   Future<void> deleteItem(String id) async {
     try {
+      // 1. Delete from local Hive storage
       await _repository.deleteVaultItem(id);
+
+      // 2. Delete from remote Supabase (fire-and-forget, best effort)
+      try {
+        await _remoteDataSource?.deleteRemoteItem(id);
+      } catch (_) {
+        // Remote deletion failure is non-blocking; sync will reconcile later
+      }
+
       await loadVaultItems();
     } catch (e) {
       state = state.copyWith(
@@ -156,5 +171,17 @@ class VaultNotifier extends StateNotifier<VaultState> {
 /// Provider for [VaultNotifier]
 final vaultNotifierProvider = StateNotifierProvider<VaultNotifier, VaultState>((ref) {
   final repository = ref.watch(vaultRepositoryProvider);
-  return VaultNotifier(repository: repository);
+
+  // Inject remote datasource for deletion sync (graceful null if Supabase not initialized)
+  IVaultRemoteDataSource? remoteDataSource;
+  try {
+    remoteDataSource = ref.watch(vaultRemoteDataSourceProvider);
+  } catch (_) {
+    remoteDataSource = null;
+  }
+
+  return VaultNotifier(
+    repository: repository,
+    remoteDataSource: remoteDataSource,
+  );
 });

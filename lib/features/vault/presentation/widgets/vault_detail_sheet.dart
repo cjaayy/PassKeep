@@ -232,20 +232,62 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
               ),
               const Divider(color: Color(0xFF334155), height: 32),
 
-              if (_decryptionError != null)
+              if (_decryptionError != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                   ),
-                  child: Text(
-                    _decryptionError!,
-                    style: const TextStyle(color: Color(0xFFF87171)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Color(0xFFF87171), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Decryption Failed',
+                            style: TextStyle(
+                              color: Color(0xFFF87171),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _decryptionError!,
+                        style: const TextStyle(color: Color(0xFFF87171), fontSize: 12),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'This entry may have been encrypted with a different Master PIN or is corrupted. You can safely delete it below.',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEF4444),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          label: const Text('Delete Corrupted Entry'),
+                          onPressed: _confirmDelete,
+                        ),
+                      ),
+                    ],
                   ),
-                )
-              else ...[
+                ),
+              ] else ...[
                 // Username field
                 _buildFieldCard(
                   title: 'Username / Email',
