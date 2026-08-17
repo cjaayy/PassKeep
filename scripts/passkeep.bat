@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+cd /d "%~dp0\.."
 title PassKeep - Flutter Runner Tool
 color 0A
 
@@ -9,33 +10,55 @@ echo ========================================================
 echo              PASSKEEP - FLUTTER HELPER TOOL             
 echo ========================================================
 echo.
-echo   [1] Debug Mode - Physical Device (USB)
-echo   [2] Debug Mode - Physical Device (Wireless / Wi-Fi)
-echo   [3] Pair Wireless Device (ADB Pair - 1-Time Setup)
-echo   [4] Debug Mode - Chrome Browser
-echo   [5] Debug Mode - Edge Browser
-echo   [6] Build Release APK (Obfuscated) + Open Output Folder
-echo   [7] Exit
+echo   [1] Fast Debug (Attach Mode - Instant / No Rebuild)
+echo   [2] Debug Mode - Physical Device (USB / Full Build)
+echo   [3] Debug Mode - Physical Device (Wireless / Wi-Fi)
+echo   [4] Pair Wireless Device (ADB Pair - 1-Time Setup)
+echo   [5] Debug Mode - Chrome Browser
+echo   [6] Debug Mode - Edge Browser
+echo   [7] Build Release APK (Obfuscated) + Open Output Folder
+echo   [8] Exit
 echo.
 echo ========================================================
-echo   Debug Mode Controls:
+echo   Debug / Attach Mode Controls:
 echo   - Press 'r' in terminal for HOT RELOAD
 echo   - Press 'R' in terminal for HOT RESTART
+echo   - Press 'q' in terminal to QUIT / DETACH
 echo ========================================================
 echo.
-set /p choice="Select an option (1-7): "
+set /p choice="Select an option (1-8): "
 
-if "!choice!"=="1" goto debug_usb
-if "!choice!"=="2" goto debug_wireless
-if "!choice!"=="3" goto adb_pair
-if "!choice!"=="4" goto debug_chrome
-if "!choice!"=="5" goto debug_edge
-if "!choice!"=="6" goto build_release
-if "!choice!"=="7" goto exit
+if "!choice!"=="1" goto fast_attach
+if "!choice!"=="2" goto debug_usb
+if "!choice!"=="3" goto debug_wireless
+if "!choice!"=="4" goto adb_pair
+if "!choice!"=="5" goto debug_chrome
+if "!choice!"=="6" goto debug_edge
+if "!choice!"=="7" goto build_release
+if "!choice!"=="8" goto exit
 
 echo.
 echo Invalid option! Please try again.
 timeout /t 2 >nul
+goto menu
+
+:fast_attach
+cls
+echo ========================================================
+echo       FAST DEBUG: ATTACH MODE (INSTANT / NO REBUILD)
+echo ========================================================
+echo.
+echo Checking connected devices...
+adb devices
+echo.
+echo 1. Launching PassKeep app on connected device...
+adb shell am start -n com.passkeep.passkeep/.MainActivity >nul 2>&1
+echo 2. Attaching Flutter debugger to running instance...
+echo.
+echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit / Detach
+echo.
+flutter attach --device-timeout 10
+pause
 goto menu
 
 :debug_usb
