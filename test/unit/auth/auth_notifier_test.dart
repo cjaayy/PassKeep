@@ -109,10 +109,10 @@ void main() {
       expect(hash, isNotNull);
     });
 
-    test('setupMasterPin with less than 4 digits should fail', () async {
-      final result = await authNotifier.setupMasterPin('12');
+    test('setupMasterPin with less than 6 digits should fail', () async {
+      final result = await authNotifier.setupMasterPin('1234');
       expect(result, isFalse);
-      expect(authNotifier.state.errorMessage, contains('at least 4 digits'));
+      expect(authNotifier.state.errorMessage, contains('exactly 6 digits'));
     });
 
     test('unlockWithPin with correct PIN should authenticate', () async {

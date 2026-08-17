@@ -104,8 +104,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// First-time onboarding: derives encryption key and persists cryptographic salt + hash
   Future<bool> setupMasterPin(String pin) async {
-    if (pin.length < 4) {
-      state = state.copyWith(errorMessage: 'PIN must be at least 4 digits');
+    if (pin.length < 6) {
+      state = state.copyWith(errorMessage: 'PIN must be exactly 6 digits');
       return false;
     }
 

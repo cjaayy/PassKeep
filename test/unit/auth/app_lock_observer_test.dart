@@ -81,7 +81,7 @@ void main() {
 
     final authNotifier = container.read(authNotifierProvider.notifier);
     await authNotifier.checkAuthState();
-    await authNotifier.setupMasterPin('1234');
+    await authNotifier.setupMasterPin('123456');
     expect(container.read(authNotifierProvider).status, equals(AuthStatus.authenticated));
 
     final observer = AppLockObserver(
@@ -114,7 +114,7 @@ void main() {
 
     final authNotifier = container.read(authNotifierProvider.notifier);
     await authNotifier.checkAuthState();
-    await authNotifier.setupMasterPin('1234');
+    await authNotifier.setupMasterPin('123456');
     expect(container.read(authNotifierProvider).status, equals(AuthStatus.authenticated));
 
     final observer = AppLockObserver(

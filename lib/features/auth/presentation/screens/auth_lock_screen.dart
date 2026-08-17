@@ -19,7 +19,7 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
         _pin += digit;
       });
 
-      if (_pin.length >= 4) {
+      if (_pin.length == 6) {
         _attemptUnlock();
       }
     }
@@ -36,10 +36,8 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
   Future<void> _attemptUnlock() async {
     final success = await ref.read(authNotifierProvider.notifier).unlockWithPin(_pin);
     if (!success && mounted) {
-      // If 6 digits entered and failed, clear PIN
-      if (_pin.length >= 6) {
-        setState(() => _pin = '');
-      }
+      // Full PIN entered and failed, clear for retry
+      setState(() => _pin = '');
     }
   }
 

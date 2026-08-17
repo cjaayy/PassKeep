@@ -44,8 +44,8 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
 
   Future<void> _handleNextOrSubmit() async {
     if (!_isConfirming) {
-      if (_enteredPin.length < 4) {
-        setState(() => _validationError = 'PIN must be at least 4 digits');
+      if (_enteredPin.length < 6) {
+        setState(() => _validationError = 'PIN must be exactly 6 digits');
         return;
       }
       setState(() {
@@ -174,7 +174,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: currentPin.length >= 4 ? _handleNextOrSubmit : null,
+                  onPressed: currentPin.length >= 6 ? _handleNextOrSubmit : null,
                   child: Text(
                     _isConfirming ? 'Complete Setup' : 'Continue',
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
