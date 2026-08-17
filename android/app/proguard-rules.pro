@@ -32,3 +32,9 @@
 # Keep line numbers and source attributes for crash symbolication
 -renamesourcefileattribute SourceFile
 -keepattributes SourceFile,LineNumberTable
+
+# Ignore missing optional Play Core / Deferred Components references in Flutter Engine
+-dontwarn com.google.android.play.core.**
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+-dontwarn io.flutter.embedding.android.FlutterPlayStoreSplitApplication
+
