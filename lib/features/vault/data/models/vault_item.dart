@@ -75,7 +75,7 @@ class VaultItem extends HiveObject {
     );
   }
 
-  /// Converts this [VaultItem] into a Map for serialization / sync.
+  /// Converts this [VaultItem] into a Map for local serialization / JSON backup.
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -90,13 +90,32 @@ class VaultItem extends HiveObject {
     };
   }
 
-  /// Creates a [VaultItem] instance from a Map.
+  /// Converts this [VaultItem] into a Supabase PostgreSQL payload.
+  Map<String, dynamic> toSupabaseMap() {
+    return {
+      'id': id,
+      'title': title,
+      'username_enc': usernameEncrypted,
+      'password_enc': passwordEncrypted,
+      'iv': iv,
+      'category': category,
+      'notes': notes,
+      'is_deleted': false,
+      'updated_at': updatedAt.toUtc().toIso8601String(),
+    };
+  }
+
+  /// Creates a [VaultItem] instance from a Map (supporting local, JSON, and Supabase formats).
   factory VaultItem.fromMap(Map<String, dynamic> map) {
     return VaultItem(
       id: map['id'] as String,
       title: map['title'] as String,
-      usernameEncrypted: (map['username_encrypted'] ?? map['usernameEncrypted']) as String,
-      passwordEncrypted: (map['password_encrypted'] ?? map['passwordEncrypted']) as String,
+      usernameEncrypted: (map['username_enc'] ??
+          map['username_encrypted'] ??
+          map['usernameEncrypted']) as String,
+      passwordEncrypted: (map['password_enc'] ??
+          map['password_encrypted'] ??
+          map['passwordEncrypted']) as String,
       iv: map['iv'] as String,
       category: (map['category'] as String?) ?? 'General',
       notes: map['notes'] as String?,
