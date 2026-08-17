@@ -16,9 +16,27 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
+    val configureAndroid = {
+        if (project.hasProperty("android")) {
+            val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+            android?.buildToolsVersion("34.0.0")
+        }
+    }
+    if (project.state.executed) {
+        configureAndroid()
+    } else {
+        project.afterEvaluate {
+            configureAndroid()
+        }
+    }
+}
+
+subprojects {
     project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+
