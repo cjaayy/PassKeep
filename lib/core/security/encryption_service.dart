@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../constants/storage_keys.dart';
@@ -80,10 +81,62 @@ class EncryptionService {
       final iv = IV.fromBase64(ivBase64);
       final encrypter = Encrypter(AES(key, mode: AESMode.cbc, padding: 'PKCS7'));
 
-      return encrypter.decrypt64(cipherTextBase64, iv: iv);
+      final decrypted = encrypter.decrypt64(cipherTextBase64, iv: iv);
+
+      // Validate decrypted output is clean printable UTF-8.
+      // Wrong-key decryption with AES-CBC can silently produce garbled bytes
+      // that pass PKCS7 unpadding (~1/256 chance). Detect this case.
+      _validateDecryptedOutput(decrypted);
+
+      return decrypted;
     } catch (e) {
+      if (e is DecryptionFailure) rethrow;
       throw DecryptionFailure(
         'Decryption failed. The payload may be corrupted, tampered with, or encrypted with a different key. (${e.toString()})',
+      );
+    }
+  }
+
+  /// Validates that decrypted plaintext contains only printable UTF-8 characters.
+  ///
+  /// Detects garbled output from wrong-key decryption by checking for:
+  /// - Unicode replacement character (U+FFFD) from malformed UTF-8
+  /// - NUL bytes (0x00) that indicate binary garbage
+  /// - Excessive non-printable ASCII control characters (0x00-0x08, 0x0E-0x1F)
+  void _validateDecryptedOutput(String decrypted) {
+    // Check 1: Re-encode and decode with strict UTF-8 to catch malformed sequences
+    try {
+      final bytes = utf8.encode(decrypted);
+      final reDecoded = utf8.decode(bytes, allowMalformed: false);
+      if (reDecoded.contains('\uFFFD')) {
+        throw const DecryptionFailure(
+          'Decryption produced malformed UTF-8. The data was likely encrypted with a different Master Key.',
+        );
+      }
+    } catch (e) {
+      if (e is DecryptionFailure) rethrow;
+      throw const DecryptionFailure(
+        'Decryption produced invalid UTF-8 byte sequences. Master key mismatch or corrupted payload.',
+      );
+    }
+
+    // Check 2: Detect NUL bytes (strong indicator of binary garbage)
+    if (decrypted.contains('\x00')) {
+      throw const DecryptionFailure(
+        'Decryption output contains NUL bytes. The data was likely encrypted with a different Master Key.',
+      );
+    }
+
+    // Check 3: Count non-printable control characters (excluding tab, newline, carriage return)
+    // Normal credentials should contain almost zero control chars.
+    final controlCharCount = decrypted.codeUnits.where((c) =>
+      (c >= 0x00 && c <= 0x08) || (c >= 0x0E && c <= 0x1F) || c == 0x7F
+    ).length;
+
+    // If more than 10% of characters are control chars, it's garbled
+    if (decrypted.isNotEmpty && controlCharCount / decrypted.length > 0.1) {
+      throw const DecryptionFailure(
+        'Decryption produced non-printable characters. The data was likely encrypted with a different Master Key.',
       );
     }
   }
