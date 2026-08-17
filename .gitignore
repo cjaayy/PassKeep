@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Credentials and Environment Secrets
+lib/core/config/supabase_config.dart
+*.env
+.env*
+
