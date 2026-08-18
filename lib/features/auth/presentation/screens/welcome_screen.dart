@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/supabase_auth_sheet.dart';
 import 'setup_master_pin_screen.dart';
@@ -35,8 +36,16 @@ class WelcomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: scaffoldBg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -46,87 +55,83 @@ class WelcomeScreen extends ConsumerWidget {
               children: [
                 const SizedBox(height: 8),
 
-                // Brand Logo & Shield
+                // Brand Logo & Shield (Borderless)
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    color: inputFill,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
-                      width: 2,
-                    ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.shield_rounded,
                     size: 48,
-                    color: Color(0xFF10B981),
+                    color: textPrimary,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
                 // App Name & Tagline
-                const Text(
+                Text(
                   'PassKeep',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textPrimary,
                     letterSpacing: 0.8,
                   ),
                 ),
-                const SizedBox(height: 2),
-                const Text(
+                const SizedBox(height: 4),
+                Text(
                   'Zero-Knowledge Password Manager',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF10B981),
+                    color: textMuted,
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
+                const SizedBox(height: 8),
+                Text(
                   'Secure, client-side encrypted credentials with optional cloud sync and full offline autonomy.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white60,
-                    height: 1.3,
+                    color: textMuted,
+                    height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 24),
 
-                // Value Proposition Cards
+                // Value Proposition Cards (Borderless)
                 _buildFeatureRow(
+                  context: context,
                   icon: Icons.lock_outline_rounded,
-                  iconColor: const Color(0xFF10B981),
                   title: 'Client-Side AES-256 Encryption',
                   description: 'Keys derived via PBKDF2 (100k rounds). Only you hold the decryption key.',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 _buildFeatureRow(
+                  context: context,
                   icon: Icons.offline_bolt_outlined,
-                  iconColor: const Color(0xFF38BDF8),
                   title: 'Offline-First & Local-First',
                   description: 'Works 100% offline. Your passwords always reside on your device first.',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 _buildFeatureRow(
+                  context: context,
                   icon: Icons.cloud_sync_outlined,
-                  iconColor: const Color(0xFFA855F7),
                   title: 'Optional Cloud Synchronization',
                   description: 'Sync your encrypted vault across devices with Supabase.',
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Action Buttons
+                // Action Buttons (Monochromatic)
                 SizedBox(
                   width: double.infinity,
-                  height: 48,
+                  height: 50,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
+                      backgroundColor: primaryAction,
+                      foregroundColor: onPrimaryAction,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -143,17 +148,17 @@ class WelcomeScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
                 SizedBox(
                   width: double.infinity,
-                  height: 46,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E293B),
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF334155), width: 1),
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: inputFill,
+                      foregroundColor: textPrimary,
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.login_rounded, size: 18, color: Color(0xFF38BDF8)),
+                    icon: Icon(Icons.login_rounded, size: 18, color: textPrimary),
                     label: const Text(
                       'Sign In to Existing Account',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -161,12 +166,12 @@ class WelcomeScreen extends ConsumerWidget {
                     onPressed: () => _handleCloudAuth(context, initialTabIndex: 0),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
 
                 // Continue Offline Button
                 TextButton.icon(
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.white60,
+                    foregroundColor: textMuted,
                   ),
                   icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                   label: const Text(
@@ -185,27 +190,31 @@ class WelcomeScreen extends ConsumerWidget {
   }
 
   Widget _buildFeatureRow({
+    required BuildContext context,
     required IconData icon,
-    required Color iconColor,
     required String title,
     required String description,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF334155), width: 0.8),
+        color: inputFill,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.15),
+              color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
+            child: Icon(icon, color: textPrimary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -214,8 +223,8 @@ class WelcomeScreen extends ConsumerWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -223,8 +232,8 @@ class WelcomeScreen extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: const TextStyle(
-                    color: Colors.white60,
+                  style: TextStyle(
+                    color: textMuted,
                     fontSize: 11,
                   ),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/card_brand_helper.dart';
 import '../../../../core/utils/clipboard_service.dart';
 import '../../../../core/utils/domain_utils.dart';
@@ -35,6 +36,7 @@ class VaultItemCard extends ConsumerWidget {
   Future<void> _quickCopyCredential(BuildContext context, WidgetRef ref) async {
     try {
       final encryptionService = ref.read(encryptionServiceProvider);
+      final isDark = Theme.of(context).brightness == Brightness.dark;
 
       if (item.isCard) {
         String cardNumber = '';
@@ -59,12 +61,18 @@ class VaultItemCard extends ConsumerWidget {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
-                  Text('Copied card number for "${item.title}". Auto-clears in 30s.'),
+                  Expanded(
+                    child: Text('Copied card number for "${item.title}". Auto-clears in 30s.'),
+                  ),
                 ],
               ),
-              backgroundColor: const Color(0xFF1E293B),
+              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 3),
             ),
@@ -83,12 +91,18 @@ class VaultItemCard extends ConsumerWidget {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
-                  Text('Copied password for "${item.title}". Auto-clears in 30s.'),
+                  Expanded(
+                    child: Text('Copied password for "${item.title}". Auto-clears in 30s.'),
+                  ),
                 ],
               ),
-              backgroundColor: const Color(0xFF1E293B),
+              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 3),
             ),
@@ -100,7 +114,7 @@ class VaultItemCard extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to copy: ${e.toString()}'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.darkDestructive,
           ),
         );
       }
@@ -109,6 +123,12 @@ class VaultItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     final username = _getDecryptedUsername(ref);
     final displaySubtitle = item.getPrimaryIdentifier(decryptedUsername: username);
 
@@ -127,14 +147,14 @@ class VaultItemCard extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      color: const Color(0xFF1E293B),
+      color: cardBg,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFF334155), width: 1),
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide.none,
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14.0),
@@ -145,9 +165,8 @@ class VaultItemCard extends ConsumerWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF334155), width: 1),
+                  color: inputFill,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Image.network(
@@ -155,7 +174,7 @@ class VaultItemCard extends ConsumerWidget {
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => Icon(
                     brandIcon,
-                    color: item.isCard ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                    color: textPrimary,
                     size: 20,
                   ),
                   loadingBuilder: (context, child, loadingProgress) {
@@ -167,7 +186,7 @@ class VaultItemCard extends ConsumerWidget {
                     }
                     return Icon(
                       brandIcon,
-                      color: item.isCard ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                      color: textPrimary,
                       size: 20,
                     );
                   },
@@ -185,35 +204,27 @@ class VaultItemCard extends ConsumerWidget {
                         Flexible(
                           child: Text(
                             item.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Category / Card Badge
+                        // Category / Card Badge (Monochromatic, borderless)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: item.isCard
-                                ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                : const Color(0xFF334155),
+                            color: inputFill,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: item.isCard
-                                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                                  : const Color(0xFF475569),
-                              width: 0.8,
-                            ),
                           ),
                           child: Text(
                             item.isCard ? 'CARD' : item.category.toUpperCase(),
                             style: TextStyle(
-                              color: item.isCard ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
+                              color: textMuted,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.8,
@@ -226,13 +237,13 @@ class VaultItemCard extends ConsumerWidget {
                     if (item.isCard)
                       Row(
                         children: [
-                          cardBrand.buildBadge(height: 18),
+                          cardBrand.buildBadge(height: 18, showBorder: false),
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
                               displaySubtitle,
-                              style: const TextStyle(
-                                color: Color(0xFF94A3B8),
+                              style: TextStyle(
+                                color: textMuted,
                                 fontSize: 13,
                                 fontFamily: 'monospace',
                                 fontWeight: FontWeight.w400,
@@ -246,8 +257,8 @@ class VaultItemCard extends ConsumerWidget {
                     else
                       Text(
                         displaySubtitle,
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
+                        style: TextStyle(
+                          color: textMuted,
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
                         ),
@@ -260,7 +271,7 @@ class VaultItemCard extends ConsumerWidget {
 
               // Quick Copy Button
               IconButton(
-                icon: const Icon(Icons.copy_rounded, color: Color(0xFF64748B), size: 18),
+                icon: Icon(Icons.copy_rounded, color: textMuted, size: 18),
                 tooltip: item.isCard ? 'Copy Card Number' : 'Copy Password',
                 onPressed: () => _quickCopyCredential(context, ref),
               ),

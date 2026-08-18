@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/backup_service.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
 import '../../../auth/presentation/widgets/supabase_auth_sheet.dart';
@@ -27,10 +28,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await backupService.exportVaultDataToFile();
 
       if (mounted) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Encrypted backup exported successfully.'),
-            backgroundColor: Color(0xFF10B981),
+          SnackBar(
+            content: const Text('Encrypted backup exported successfully.'),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -40,7 +42,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: ${e.toString()}'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.darkDestructive,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -59,10 +61,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (count != null && mounted) {
         await ref.read(vaultNotifierProvider.notifier).loadVaultItems();
         if (mounted) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Successfully imported and restored $count items.'),
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -73,7 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Import failed: ${e.toString()}'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.darkDestructive,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -86,11 +89,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _handleSync() async {
     final result = await ref.read(syncNotifierProvider.notifier).sync();
     if (mounted) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       if (result.isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Cloud sync complete. ${result.totalChanges} changes synced.'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -98,7 +102,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.errorMessage ?? 'Sync failed.'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.darkDestructive,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -107,24 +111,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _handleForcePush() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Force Push to Cloud?', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        title: Text(
+          'Force Push to Cloud?',
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
           'This will upload all local encrypted vault items and overwrite the cloud database.',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
+              backgroundColor: isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary,
+              foregroundColor: isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary,
+              elevation: 0,
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Force Push'),
@@ -140,7 +159,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Force push complete. ${result.pushedCount} items uploaded to cloud.'),
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -148,7 +167,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result.errorMessage ?? 'Force push failed.'),
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppTheme.darkDestructive,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -158,30 +177,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _handleWipeRemoteAndResync() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Row(
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 8),
-            Text('Wipe Remote Vault?', style: TextStyle(color: Colors.white, fontSize: 16)),
+            const Icon(Icons.warning_amber_rounded, color: AppTheme.darkDestructive),
+            const SizedBox(width: 8),
+            Text(
+              'Wipe Remote Vault?',
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
-        content: const Text(
-          'This will permanently delete all entries in your Supabase cloud database and replace them with your current local vault items. Useful if the remote vault was encrypted with an old Master PIN.',
-          style: TextStyle(color: Colors.white70),
+        content: Text(
+          'This will permanently delete all entries in your Supabase cloud database and replace them with your current local vault items.',
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+              ),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? const Color(0xFF3F3F46) : const Color(0xFFE4E4E7),
+              foregroundColor: AppTheme.darkDestructive,
+              elevation: 0,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Wipe & Push', style: TextStyle(color: Colors.white)),
+            child: const Text('Wipe & Push'),
           ),
         ],
       ),
@@ -197,7 +235,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ? 'Remote database wiped. Pushed ${result.pushedCount} local items.'
                   : result.errorMessage ?? 'Wipe & sync failed.',
             ),
-            backgroundColor: result.isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+            backgroundColor: result.isSuccess
+                ? (isDark ? AppTheme.darkSurface : AppTheme.lightPrimary)
+                : AppTheme.darkDestructive,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -206,24 +246,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _confirmSignOut() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final shouldSignOut = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Sign Out from Cloud?', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        title: Text(
+          'Sign Out from Cloud?',
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
           'Your local encrypted vault will remain accessible on this device with your Master PIN, but cloud sync will be paused.',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+              ),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? const Color(0xFF3F3F46) : const Color(0xFFE4E4E7),
+              foregroundColor: AppTheme.darkDestructive,
+              elevation: 0,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+            child: const Text('Sign Out'),
           ),
         ],
       ),
@@ -233,9 +291,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await ref.read(supabaseUserProvider.notifier).signOut();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Signed out from Supabase cloud.'),
-            backgroundColor: Color(0xFF1E293B),
+          SnackBar(
+            content: const Text('Signed out from Supabase cloud.'),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -255,16 +313,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (userState.isAuthenticated) {
       ref.read(authNotifierProvider.notifier).setOfflineOnlyMode(false);
       if (mounted) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.cloud_done_rounded, color: Color(0xFF10B981), size: 20),
+                Icon(
+                  Icons.cloud_done_rounded,
+                  color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
-                Text('Connected cloud account: ${userState.email}'),
+                Expanded(
+                  child: Text('Connected cloud account: ${userState.email}'),
+                ),
               ],
             ),
-            backgroundColor: const Color(0xFF1E293B),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -280,20 +345,122 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settingsState = ref.watch(settingsNotifierProvider);
 
     final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryTextColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final mutedTextColor = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final badgeBgColor = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: isDark ? AppTheme.darkBackground : AppTheme.lightBackground,
         elevation: 0,
-        title: const Text(
+        scrolledUnderElevation: 0,
+        title: Text(
           'Settings & Vault',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: primaryTextColor,
+          ),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         children: [
+          // Section: Appearance & Theme
+          _buildSectionHeader('Appearance & Theme'),
+          _buildCard(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: badgeBgColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            settingsState.themeMode == ThemeMode.light
+                                ? Icons.light_mode_rounded
+                                : settingsState.themeMode == ThemeMode.dark
+                                    ? Icons.dark_mode_rounded
+                                    : Icons.brightness_auto_rounded,
+                            color: primaryTextColor,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Theme Mode',
+                              style: TextStyle(
+                                color: primaryTextColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                            Text(
+                              settingsState.themeMode == ThemeMode.system
+                                  ? 'System Default'
+                                  : settingsState.themeMode == ThemeMode.light
+                                      ? 'Light Mode'
+                                      : 'Dark Mode',
+                              style: TextStyle(
+                                color: mutedTextColor,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Theme Switcher Segmented Buttons
+                    Row(
+                      children: [
+                        _buildThemeOption(
+                          label: 'System',
+                          icon: Icons.brightness_auto_rounded,
+                          isSelected: settingsState.themeMode == ThemeMode.system,
+                          onTap: () => ref
+                              .read(settingsNotifierProvider.notifier)
+                              .setThemeMode(ThemeMode.system),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildThemeOption(
+                          label: 'Light',
+                          icon: Icons.light_mode_rounded,
+                          isSelected: settingsState.themeMode == ThemeMode.light,
+                          onTap: () => ref
+                              .read(settingsNotifierProvider.notifier)
+                              .setThemeMode(ThemeMode.light),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildThemeOption(
+                          label: 'Dark',
+                          icon: Icons.dark_mode_rounded,
+                          isSelected: settingsState.themeMode == ThemeMode.dark,
+                          onTap: () => ref
+                              .read(settingsNotifierProvider.notifier)
+                              .setThemeMode(ThemeMode.dark),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
           // Section: Account & Cloud Sync
           _buildSectionHeader('Account & Cloud Sync'),
           if (isCloudSyncEnabled) ...[
@@ -303,109 +470,117 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      color: badgeBgColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.account_circle_rounded, color: Color(0xFF10B981)),
+                    child: Icon(Icons.account_circle_rounded, color: primaryTextColor),
                   ),
                   title: Text(
                     userState.email ?? 'Cloud Account',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Connected to Supabase Cloud',
-                    style: TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w500),
+                    style: TextStyle(color: mutedTextColor, fontSize: 12, fontWeight: FontWeight.w500),
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
+                    icon: const Icon(Icons.logout_rounded, color: AppTheme.darkDestructive, size: 20),
                     tooltip: 'Sign Out',
                     onPressed: _confirmSignOut,
                   ),
                 ),
-                const Divider(color: Color(0xFF334155), height: 1),
+                Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
                 SwitchListTile(
                   secondary: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      color: badgeBgColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.sync_lock_rounded, color: Color(0xFF10B981)),
+                    child: Icon(Icons.sync_lock_rounded, color: primaryTextColor),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Auto-Sync Passwords',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Automatically upload new or updated items when online',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: mutedTextColor, fontSize: 12),
                   ),
                   value: settingsState.autoSyncEnabled,
-                  activeThumbColor: const Color(0xFF10B981),
-                  activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.3),
-                  inactiveThumbColor: const Color(0xFF64748B),
-                  inactiveTrackColor: const Color(0xFF334155),
+                  activeThumbColor: isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary,
+                  activeTrackColor: isDark ? const Color(0xFF3F3F46) : const Color(0xFFD4D4D8),
+                  inactiveThumbColor: mutedTextColor,
+                  inactiveTrackColor: isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill,
                   onChanged: (bool value) {
                     ref.read(settingsNotifierProvider.notifier).setAutoSyncEnabled(value);
                   },
                 ),
-                const Divider(color: Color(0xFF334155), height: 1),
+                Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      color: badgeBgColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.cloud_sync_rounded, color: Color(0xFF10B981)),
+                    child: Icon(Icons.cloud_sync_rounded, color: primaryTextColor),
                   ),
-                  title: const Text('Cloud Synchronization', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  title: Text(
+                    'Cloud Synchronization',
+                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
+                  ),
                   subtitle: Text(
                     syncState.lastSyncedAt != null
                         ? 'Last synced: ${syncState.lastSyncedAt!.toLocal().toString().split('.').first}'
                         : 'Not synchronized yet',
-                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: mutedTextColor, fontSize: 12),
                   ),
                   trailing: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E293B),
-                      foregroundColor: const Color(0xFF10B981),
+                      backgroundColor: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                      foregroundColor: primaryTextColor,
                       elevation: 0,
-                      side: const BorderSide(color: Color(0xFF10B981), width: 1),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     icon: syncState.isSyncing
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)))
+                        ? SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: primaryTextColor,
+                            ),
+                          )
                         : const Icon(Icons.sync_rounded, size: 16),
                     label: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     onPressed: syncState.isSyncing ? null : _handleSync,
                   ),
                 ),
-                const Divider(color: Color(0xFF334155), height: 1),
+                Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      color: badgeBgColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.cloud_upload_rounded, color: Color(0xFF10B981)),
+                    child: Icon(Icons.cloud_upload_rounded, color: primaryTextColor),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Force Push to Cloud',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Upload & overwrite all local items to cloud database',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: mutedTextColor, fontSize: 12),
                   ),
                   trailing: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E293B),
-                      foregroundColor: const Color(0xFF10B981),
+                      backgroundColor: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                      foregroundColor: primaryTextColor,
                       elevation: 0,
-                      side: const BorderSide(color: Color(0xFF10B981), width: 1),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -414,30 +589,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onPressed: syncState.isSyncing ? null : _handleForcePush,
                   ),
                 ),
-                const Divider(color: Color(0xFF334155), height: 1),
+                Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      color: isDark
+                          ? AppTheme.darkDestructive.withValues(alpha: 0.15)
+                          : AppTheme.lightDestructive.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFF87171)),
+                    child: const Icon(Icons.delete_sweep_rounded, color: AppTheme.darkDestructive),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Wipe Remote & Re-sync',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Clear remote cloud vault and upload current local entries',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: mutedTextColor, fontSize: 12),
                   ),
                   trailing: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E293B),
-                      foregroundColor: const Color(0xFFF87171),
+                      backgroundColor: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                      foregroundColor: AppTheme.darkDestructive,
                       elevation: 0,
-                      side: const BorderSide(color: Color(0xFFEF4444), width: 1),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -455,31 +631,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF64748B).withValues(alpha: 0.15),
+                      color: badgeBgColor,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.cloud_off_rounded, color: Color(0xFF94A3B8)),
+                    child: Icon(Icons.cloud_off_rounded, color: mutedTextColor),
                   ),
-                  title: const Text(
+                  title: Text(
                     'Cloud Sync Disabled',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     'Operating in Offline Mode. Multi-device sync is disabled.',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: mutedTextColor, fontSize: 12),
                   ),
                 ),
-                const Divider(color: Color(0xFF334155), height: 1),
+                Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
                 Padding(
                   padding: const EdgeInsets.all(14.0),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary,
+                        foregroundColor: isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                         elevation: 0,
                       ),
                       icon: const Icon(Icons.cloud_sync_rounded, size: 18),
@@ -504,33 +680,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    color: badgeBgColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.file_upload_outlined, color: Color(0xFF10B981)),
+                  child: Icon(Icons.file_upload_outlined, color: primaryTextColor),
                 ),
-                title: const Text('Export Vault Data', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Export an AES-256 encrypted .passkeep archive', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                title: Text('Export Vault Data', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text('Export an AES-256 encrypted .passkeep archive', style: TextStyle(color: mutedTextColor, fontSize: 12)),
                 trailing: _isExporting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)))
-                    : const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: primaryTextColor,
+                        ),
+                      )
+                    : Icon(Icons.chevron_right_rounded, color: mutedTextColor),
                 onTap: _isExporting ? null : _handleExport,
               ),
-              const Divider(color: Color(0xFF334155), height: 1),
+              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                    color: badgeBgColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.file_download_outlined, color: Color(0xFF38BDF8)),
+                  child: Icon(Icons.file_download_outlined, color: primaryTextColor),
                 ),
-                title: const Text('Import Vault Data', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Restore passwords from a .passkeep backup file', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                title: Text('Import Vault Data', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text('Restore passwords from a .passkeep backup file', style: TextStyle(color: mutedTextColor, fontSize: 12)),
                 trailing: _isImporting
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)))
-                    : const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: primaryTextColor,
+                        ),
+                      )
+                    : Icon(Icons.chevron_right_rounded, color: mutedTextColor),
                 onTap: _isImporting ? null : _handleImport,
               ),
             ],
@@ -545,46 +735,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFA855F7).withValues(alpha: 0.15),
+                    color: badgeBgColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.fingerprint_rounded, color: Color(0xFFA855F7)),
+                  child: Icon(Icons.fingerprint_rounded, color: primaryTextColor),
                 ),
-                title: const Text('Biometric Unlock', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                title: Text('Biometric Unlock', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
                 subtitle: Text(
                   authState.isBiometricsAvailable ? 'Supported on this device' : 'Not available or not configured',
-                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                  style: TextStyle(color: mutedTextColor, fontSize: 12),
                 ),
                 trailing: Icon(
                   authState.isBiometricsAvailable ? Icons.check_circle_rounded : Icons.cancel_outlined,
-                  color: authState.isBiometricsAvailable ? const Color(0xFF10B981) : Colors.white38,
+                  color: authState.isBiometricsAvailable ? primaryTextColor : mutedTextColor,
                 ),
               ),
-              const Divider(color: Color(0xFF334155), height: 1),
+              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    color: badgeBgColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.timer_outlined, color: Color(0xFFF59E0B)),
+                  child: Icon(Icons.timer_outlined, color: primaryTextColor),
                 ),
-                title: const Text('Auto-Lock on Background', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Locks vault after 30 seconds in background', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                title: Text('Auto-Lock on Background', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text('Locks vault after 30 seconds in background', style: TextStyle(color: mutedTextColor, fontSize: 12)),
               ),
-              const Divider(color: Color(0xFF334155), height: 1),
+              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    color: isDark
+                        ? AppTheme.darkDestructive.withValues(alpha: 0.15)
+                        : AppTheme.lightDestructive.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.lock_rounded, color: Color(0xFFEF4444)),
+                  child: const Icon(Icons.lock_rounded, color: AppTheme.darkDestructive),
                 ),
-                title: const Text('Lock Application Now', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold)),
-                subtitle: const Text('Clears in-memory keys and returns to lock screen', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                title: const Text('Lock Application Now', style: TextStyle(color: AppTheme.darkDestructive, fontWeight: FontWeight.bold)),
+                subtitle: Text('Clears in-memory keys and returns to lock screen', style: TextStyle(color: mutedTextColor, fontSize: 12)),
                 onTap: () {
                   ref.read(authNotifierProvider.notifier).lockVault();
                   Navigator.of(context).popUntil((route) => route.isFirst);
@@ -597,23 +789,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Section: About & Security Specs
           _buildSectionHeader('About PassKeep'),
           _buildCard(
-            children: const [
+            children: [
               ListTile(
-                leading: Icon(Icons.shield_outlined, color: Color(0xFF10B981)),
-                title: Text('Architecture', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: Text('Zero-Knowledge Client-Side Encryption', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                leading: Icon(Icons.shield_outlined, color: primaryTextColor),
+                title: Text('Architecture', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text('Zero-Knowledge Client-Side Encryption', style: TextStyle(color: mutedTextColor, fontSize: 12)),
               ),
-              Divider(color: Color(0xFF334155), height: 1),
+              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
               ListTile(
-                leading: Icon(Icons.enhanced_encryption_rounded, color: Color(0xFF38BDF8)),
-                title: Text('Encryption Standard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                subtitle: Text('AES-256-CBC with PKCS7 & PBKDF2 (100k rounds)', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                leading: Icon(Icons.enhanced_encryption_rounded, color: primaryTextColor),
+                title: Text('Encryption Standard', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text('AES-256-CBC with PKCS7 & PBKDF2 (100k rounds)', style: TextStyle(color: mutedTextColor, fontSize: 12)),
               ),
-              Divider(color: Color(0xFF334155), height: 1),
+              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
               ListTile(
-                leading: Icon(Icons.info_outline_rounded, color: Colors.white60),
-                title: Text('App Version', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                trailing: Text('1.0.0+1', style: TextStyle(color: Colors.white60, fontWeight: FontWeight.w600)),
+                leading: Icon(Icons.info_outline_rounded, color: mutedTextColor),
+                title: Text('App Version', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                trailing: Text('1.0.0+1', style: TextStyle(color: mutedTextColor, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -623,13 +815,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildThemeOption({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedBg = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final selectedFg = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+    final unselectedBg = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final unselectedFg = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? selectedBg : unselectedBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? selectedFg : unselectedFg,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? selectedFg : unselectedFg,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     return Padding(
       padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
-          color: Color(0xFF10B981),
+        style: TextStyle(
+          color: mutedColor,
           fontSize: 11,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
@@ -639,11 +879,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildCard({required List<Widget> children}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF334155), width: 1),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),

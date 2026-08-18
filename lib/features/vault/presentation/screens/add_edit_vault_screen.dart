@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/card_brand_helper.dart';
-import '../../../../core/utils/domain_utils.dart';
 import '../../../../core/utils/service_brand_helper.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
@@ -443,13 +443,14 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       }
 
       if (mounted) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               widget.existingItem != null ? 'Item updated securely.' : 'Item added to vault.',
             ),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
           ),
         );
       }
@@ -458,7 +459,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save item: $e'),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.darkDestructive,
           ),
         );
       }
@@ -470,12 +471,13 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   }
 
   Widget _buildSectionLabel(String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
       child: Text(
         label.toUpperCase(),
-        style: const TextStyle(
-          color: Color(0xFF94A3B8),
+        style: TextStyle(
+          color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
           fontSize: 11,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.0,
@@ -488,28 +490,44 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   Widget build(BuildContext context) {
     final isEditing = widget.existingItem != null;
     final isCard = _selectedItemType == 'card';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final scaffoldBg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: scaffoldBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
+        backgroundColor: scaffoldBg,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Text(
           isEditing
               ? (isCard ? 'Edit Payment Card' : 'Edit Vault Item')
               : (isCard ? 'New Payment Card' : 'New Vault Item'),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: textPrimary,
+          ),
         ),
         actions: [
           IconButton(
             onPressed: _isSaving ? null : _handleSave,
             icon: _isSaving
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: textPrimary,
+                    ),
                   )
-                : const Icon(Icons.check_rounded, color: Color(0xFF10B981), size: 28),
+                : Icon(Icons.check_rounded, color: textPrimary, size: 28),
             tooltip: 'Save Item',
           ),
         ],
@@ -521,14 +539,13 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Item Type Segmented Toggle
+              // Item Type Segmented Toggle (Borderless, Monochromatic)
               _buildSectionLabel('Item Type'),
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF334155), width: 1),
+                  color: inputFill,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 padding: const EdgeInsets.all(4),
                 child: Row(
@@ -546,8 +563,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: !isCard ? const Color(0xFF10B981) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
+                            color: !isCard ? primaryAction : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -555,7 +572,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                               Icon(
                                 Icons.vpn_key_rounded,
                                 size: 16,
-                                color: !isCard ? Colors.white : const Color(0xFF94A3B8),
+                                color: !isCard ? onPrimaryAction : textMuted,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -564,7 +581,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
-                                  color: !isCard ? Colors.white : const Color(0xFF94A3B8),
+                                  color: !isCard ? onPrimaryAction : textMuted,
                                 ),
                               ),
                             ],
@@ -585,8 +602,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: isCard ? const Color(0xFF3B82F6) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
+                            color: isCard ? primaryAction : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -594,7 +611,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                               Icon(
                                 Icons.credit_card_rounded,
                                 size: 16,
-                                color: isCard ? Colors.white : const Color(0xFF94A3B8),
+                                color: isCard ? onPrimaryAction : textMuted,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -603,7 +620,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
-                                  color: isCard ? Colors.white : const Color(0xFF94A3B8),
+                                  color: isCard ? onPrimaryAction : textMuted,
                                 ),
                               ),
                             ],
@@ -626,24 +643,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   controller: _cardTitleController,
                   textCapitalization: TextCapitalization.words,
                   inputFormatters: [TitleCaseTextInputFormatter()],
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'e.g. BPI Gold Visa, GCash Card, Maya Card',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.account_balance_rounded, color: Color(0xFF3B82F6)),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.account_balance_rounded, color: textMuted),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   validator: (val) =>
@@ -656,24 +673,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 TextFormField(
                   controller: _cardholderController,
                   textCapitalization: TextCapitalization.characters,
-                  style: const TextStyle(color: Colors.white, letterSpacing: 1.0),
+                  style: TextStyle(color: textPrimary, letterSpacing: 1.0),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'e.g. JUAN DELA CRUZ',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF3B82F6)),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.person_outline_rounded, color: textMuted),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   validator: (val) =>
@@ -687,29 +704,29 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   controller: _cardNumberController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [CardNumberInputFormatter()],
-                  style: const TextStyle(color: Colors.white, letterSpacing: 1.5, fontFamily: 'monospace'),
+                  style: TextStyle(color: textPrimary, letterSpacing: 1.5, fontFamily: 'monospace'),
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'XXXX XXXX XXXX XXXX',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.credit_card_rounded, color: Color(0xFF3B82F6)),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.credit_card_rounded, color: textMuted),
                     suffixIcon: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
-                      child: CardBrandHelper.detectBrand(_cardNumberController.text).buildBadge(height: 22),
+                      child: CardBrandHelper.detectBrand(_cardNumberController.text).buildBadge(height: 22, showBorder: false),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   validator: (val) {
@@ -735,24 +752,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                             controller: _cardExpiryController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [CardExpiryInputFormatter()],
-                            style: const TextStyle(color: Colors.white, letterSpacing: 1.0, fontFamily: 'monospace'),
+                            style: TextStyle(color: textPrimary, letterSpacing: 1.0, fontFamily: 'monospace'),
                             decoration: InputDecoration(
                               filled: true,
-                              fillColor: const Color(0xFF1E293B),
+                              fillColor: inputFill,
                               hintText: 'MM/YY',
-                              hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                              prefixIcon: const Icon(Icons.calendar_today_rounded, color: Color(0xFF3B82F6), size: 18),
+                              hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                              prefixIcon: Icon(Icons.calendar_today_rounded, color: textMuted, size: 18),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
                               ),
                             ),
                             validator: (val) {
@@ -784,32 +801,32 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                             obscureText: !_isCvvVisible,
                             maxLength: 4,
                             buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-                            style: const TextStyle(color: Colors.white, letterSpacing: 2.0, fontFamily: 'monospace'),
+                            style: TextStyle(color: textPrimary, letterSpacing: 2.0, fontFamily: 'monospace'),
                             decoration: InputDecoration(
                               filled: true,
-                              fillColor: const Color(0xFF1E293B),
+                              fillColor: inputFill,
                               hintText: '123',
-                              hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                              prefixIcon: const Icon(Icons.security_rounded, color: Color(0xFF3B82F6), size: 18),
+                              hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                              prefixIcon: Icon(Icons.security_rounded, color: textMuted, size: 18),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _isCvvVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                  color: Colors.white60,
+                                  color: textMuted,
                                   size: 18,
                                 ),
                                 onPressed: () => setState(() => _isCvvVisible = !_isCvvVisible),
                               ),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
                               ),
                             ),
                             validator: (val) {
@@ -835,32 +852,32 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   obscureText: !_isCardPinVisible,
                   maxLength: 6,
                   buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-                  style: const TextStyle(color: Colors.white, letterSpacing: 2.0, fontFamily: 'monospace'),
+                  style: TextStyle(color: textPrimary, letterSpacing: 2.0, fontFamily: 'monospace'),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'ATM / Online PIN',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.pin_rounded, color: Color(0xFF3B82F6), size: 18),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.pin_rounded, color: textMuted, size: 18),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _isCardPinVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                        color: Colors.white60,
+                        color: textMuted,
                         size: 18,
                       ),
                       onPressed: () => setState(() => _isCardPinVisible = !_isCardPinVisible),
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
@@ -871,26 +888,26 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 _buildSectionLabel('Title / Platform Service'),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedService,
-                  dropdownColor: const Color(0xFF1E293B),
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+                  dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                  style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     prefixIcon: Icon(
                       ServiceBrandHelper.getIconForService(_selectedService),
-                      color: const Color(0xFF10B981),
+                      color: textMuted,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   items: _presetServices.map((service) {
@@ -900,7 +917,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                         children: [
                           Icon(
                             ServiceBrandHelper.getIconForService(service),
-                            color: const Color(0xFF94A3B8),
+                            color: textMuted,
                             size: 18,
                           ),
                           const SizedBox(width: 10),
@@ -930,24 +947,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     controller: _titleController,
                     textCapitalization: TextCapitalization.words,
                     inputFormatters: [TitleCaseTextInputFormatter()],
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: const Color(0xFF1E293B),
+                      fillColor: inputFill,
                       hintText: 'Enter custom service name (e.g. Work Vpn)',
-                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                      prefixIcon: const Icon(Icons.edit_note_rounded, color: Color(0xFF10B981)),
+                      hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                      prefixIcon: Icon(Icons.edit_note_rounded, color: textMuted),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                     validator: (val) =>
@@ -963,24 +980,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 TextFormField(
                   controller: _usernameController,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'name@example.com',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF10B981)),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.person_outline_rounded, color: textMuted),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   validator: (val) {
@@ -1004,24 +1021,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 TextFormField(
                   controller: _accountNumberController,
                   keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'e.g. 09171234567, 1234-5678-90',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.pin_outlined, color: Color(0xFF10B981)),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.pin_outlined, color: textMuted),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   validator: (val) {
@@ -1045,43 +1062,43 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: 'Enter or generate password / PIN',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF10B981)),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.lock_outline_rounded, color: textMuted),
                     suffixIcon: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
                           icon: Icon(
                             _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                            color: Colors.white60,
+                            color: textMuted,
                           ),
                           onPressed: () =>
                               setState(() => _isPasswordVisible = !_isPasswordVisible),
                           tooltip: 'Toggle Visibility',
                         ),
                         IconButton(
-                          icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF10B981)),
+                          icon: Icon(Icons.auto_awesome_rounded, color: primaryAction),
                           onPressed: _openPasswordGenerator,
                           tooltip: 'Generate Strong Password',
                         ),
                       ],
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   validator: (val) =>
@@ -1093,23 +1110,23 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 _buildSectionLabel('Category'),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedCategoryOption,
-                  dropdownColor: const Color(0xFF1E293B),
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+                  dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                  style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
-                    prefixIcon: const Icon(Icons.folder_outlined, color: Color(0xFF10B981)),
+                    fillColor: inputFill,
+                    prefixIcon: Icon(Icons.folder_outlined, color: textMuted),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                   items: _presetCategories.map((category) {
@@ -1137,24 +1154,24 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     controller: _customCategoryController,
                     textCapitalization: TextCapitalization.words,
                     inputFormatters: [TitleCaseTextInputFormatter()],
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: const Color(0xFF1E293B),
+                      fillColor: inputFill,
                       hintText: 'Enter custom category (e.g. Banking, Crypto)',
-                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                      prefixIcon: const Icon(Icons.create_new_folder_outlined, color: Color(0xFF10B981)),
+                      hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                      prefixIcon: Icon(Icons.create_new_folder_outlined, color: textMuted),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
                       ),
                     ),
                     validator: (val) =>
@@ -1171,38 +1188,38 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   controller: _notesController,
                   maxLines: 4,
                   textCapitalization: TextCapitalization.sentences,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: const Color(0xFF1E293B),
+                    fillColor: inputFill,
                     hintText: '2FA Backup codes, PINs, or security answers...',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
                     alignLabelWithHint: true,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
               ],
               const SizedBox(height: 32),
 
-              // Save Button
+              // Save Button (High contrast solid minimalist style)
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isCard ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
+                    backgroundColor: primaryAction,
+                    foregroundColor: onPrimaryAction,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
@@ -1222,3 +1239,4 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     );
   }
 }
+

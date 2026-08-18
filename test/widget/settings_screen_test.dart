@@ -125,7 +125,7 @@ void main() {
 
     // Verify other sections remain accessible
     expect(find.text('DATA TRANSFER & BACKUPS'), findsOneWidget);
-    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
     await tester.pumpAndSettle();
     expect(find.text('SECURITY & ACCESS'), findsOneWidget);
     expect(find.text('ABOUT PASSKEEP'), findsOneWidget);

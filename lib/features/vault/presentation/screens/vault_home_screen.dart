@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
@@ -12,7 +13,11 @@ import '../widgets/vault_group_card.dart';
 import '../widgets/vault_item_card.dart';
 import 'add_edit_vault_screen.dart';
 
-/// Main Dashboard Screen for PassKeep with Context-Aware Bottom Navigation Bar
+/// Main screen of PassKeep with tabbed navigation:
+/// - Tab 0: Passwords View
+/// - Tab 1: Cards View
+/// - Tab 2: Settings View
+/// With dedicated Add triggers from the bottom navigation bar.
 class VaultHomeScreen extends ConsumerStatefulWidget {
   const VaultHomeScreen({super.key});
 
@@ -22,10 +27,11 @@ class VaultHomeScreen extends ConsumerStatefulWidget {
 
 class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     with SingleTickerProviderStateMixin {
-  int _selectedTabIndex = 0; // 0: Passwords, 1: Cards, 2: Settings
   final TextEditingController _passwordSearchController = TextEditingController();
   final TextEditingController _cardSearchController = TextEditingController();
+
   late AnimationController _syncAnimationController;
+  int _selectedTabIndex = 0; // 0: Passwords, 1: Cards, 2: Settings
 
   @override
   void initState() {
@@ -35,8 +41,10 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
       duration: const Duration(seconds: 1),
     );
 
-    // Initial load
-    Future.microtask(() => ref.read(vaultNotifierProvider.notifier).loadVaultItems());
+    // Initial load of vault items
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(vaultNotifierProvider.notifier).loadVaultItems();
+    });
   }
 
   @override
@@ -45,6 +53,35 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     _cardSearchController.dispose();
     _syncAnimationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSync() async {
+    _syncAnimationController.repeat();
+    final result = await ref.read(syncNotifierProvider.notifier).sync();
+    _syncAnimationController.stop();
+    _syncAnimationController.reset();
+
+    if (mounted) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      if (result.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Vault synced. ${result.totalChanges} changes updated.'),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Sync failed.'),
+            backgroundColor: AppTheme.darkDestructive,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _openDetailSheet(VaultItem item) {
@@ -56,38 +93,8 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     );
   }
 
-  Future<void> _handleSync() async {
-    _syncAnimationController.repeat();
-    final result = await ref.read(syncNotifierProvider.notifier).sync();
-    _syncAnimationController.stop();
-    _syncAnimationController.reset();
-
-    if (mounted) {
-      if (result.isSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sync completed. ${result.totalChanges} changes synced.'),
-            backgroundColor: const Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.errorMessage ?? 'Sync failed.'),
-            backgroundColor: const Color(0xFFEF4444),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  }
-
   void _onAddTapped() {
-    // Context-aware Add Trigger:
-    // If on Cards tab -> open AddEditVaultScreen with 'card' mode
-    // Otherwise -> open AddEditVaultScreen with 'login' mode
-    final initialType = _selectedTabIndex == 1 ? 'card' : 'login';
+    final String initialType = (_selectedTabIndex == 1) ? 'card' : 'login';
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -96,35 +103,22 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Row(
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final vaultState = ref.watch(vaultNotifierProvider);
+    final syncState = ref.watch(syncNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
     final userState = ref.watch(supabaseUserProvider);
-    final syncState = ref.watch(syncNotifierProvider);
 
     final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final scaffoldBg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
 
-    // Calculate active navigation bar index
     int navIndex;
     if (_selectedTabIndex == 0) {
       navIndex = 0;
@@ -135,26 +129,27 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: scaffoldBg,
       appBar: _selectedTabIndex == 2
           ? null // SettingsScreen provides its own AppBar
           : AppBar(
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: scaffoldBg,
               elevation: 0,
+              scrolledUnderElevation: 0,
               title: Row(
                 children: [
                   Icon(
                     _selectedTabIndex == 1 ? Icons.credit_card_rounded : Icons.shield_rounded,
-                    color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
-                    size: 28,
+                    color: textPrimary,
+                    size: 26,
                   ),
                   const SizedBox(width: 10),
                   Text(
                     _selectedTabIndex == 1 ? 'Payment Cards' : 'PassKeep',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
-                      color: Colors.white,
+                      color: textPrimary,
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -168,7 +163,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                     child: IconButton(
                       icon: Icon(
                         Icons.sync_rounded,
-                        color: syncState.isSyncing ? const Color(0xFF10B981) : Colors.white70,
+                        color: textPrimary,
                       ),
                       tooltip: 'Sync with Cloud',
                       onPressed: syncState.isSyncing ? null : _handleSync,
@@ -176,7 +171,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                   ),
                 // Lock Vault Button
                 IconButton(
-                  icon: const Icon(Icons.lock_outline_rounded, color: Colors.white70),
+                  icon: Icon(Icons.lock_outline_rounded, color: textMuted),
                   tooltip: 'Lock Vault',
                   onPressed: () {
                     ref.read(authNotifierProvider.notifier).lockVault();
@@ -196,93 +191,84 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
           const SettingsScreen(),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0F172A),
-          border: Border(
-            top: BorderSide(color: Color(0xFF334155), width: 1),
-          ),
-        ),
-        child: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            backgroundColor: const Color(0xFF0F172A),
-            indicatorColor: _selectedTabIndex == 1
-                ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
-                : const Color(0xFF10B981).withValues(alpha: 0.2),
-            labelTextStyle: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
-                return TextStyle(
-                  color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                );
-              }
-              return const TextStyle(
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w500,
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: scaffoldBg,
+          elevation: 0,
+          indicatorColor: inputFill,
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return TextStyle(
+                color: textPrimary,
+                fontWeight: FontWeight.bold,
                 fontSize: 12,
               );
-            }),
-            iconTheme: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
-                return IconThemeData(
-                  color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
-                  size: 24,
-                );
-              }
-              return const IconThemeData(color: Color(0xFF64748B), size: 24);
-            }),
-          ),
-          child: NavigationBar(
-            selectedIndex: navIndex,
-            onDestinationSelected: (index) {
-              if (index == 0) {
-                setState(() => _selectedTabIndex = 0);
-              } else if (index == 1) {
-                _onAddTapped();
-              } else if (index == 2) {
-                setState(() => _selectedTabIndex = 1);
-              } else if (index == 3) {
-                setState(() => _selectedTabIndex = 2);
-              }
-            },
-            destinations: [
-              const NavigationDestination(
-                icon: Icon(Icons.vpn_key_outlined),
-                selectedIcon: Icon(Icons.vpn_key_rounded),
-                label: 'Passwords',
-              ),
-              NavigationDestination(
-                icon: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+            }
+            return TextStyle(
+              color: textMuted,
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            );
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return IconThemeData(
+                color: textPrimary,
+                size: 24,
+              );
+            }
+            return IconThemeData(color: textMuted, size: 24);
+          }),
+        ),
+        child: NavigationBar(
+          selectedIndex: navIndex,
+          onDestinationSelected: (index) {
+            if (index == 0) {
+              setState(() => _selectedTabIndex = 0);
+            } else if (index == 1) {
+              _onAddTapped();
+            } else if (index == 2) {
+              setState(() => _selectedTabIndex = 1);
+            } else if (index == 3) {
+              setState(() => _selectedTabIndex = 2);
+            }
+          },
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.vpn_key_outlined),
+              selectedIcon: Icon(Icons.vpn_key_rounded),
+              label: 'Passwords',
+            ),
+            NavigationDestination(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primaryAction,
+                  shape: BoxShape.circle,
                 ),
-                selectedIcon: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                child: Icon(Icons.add_rounded, color: onPrimaryAction, size: 18),
+              ),
+              selectedIcon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: primaryAction,
+                  shape: BoxShape.circle,
                 ),
-                label: 'Add',
+                child: Icon(Icons.add_rounded, color: onPrimaryAction, size: 18),
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.credit_card_outlined),
-                selectedIcon: Icon(Icons.credit_card_rounded),
-                label: 'Cards',
-              ),
-              const NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings_rounded),
-                label: 'Settings',
-              ),
-            ],
-          ),
+              label: 'Add',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.credit_card_outlined),
+              selectedIcon: Icon(Icons.credit_card_rounded),
+              label: 'Cards',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.settings_outlined),
+              selectedIcon: Icon(Icons.settings_rounded),
+              label: 'Settings',
+            ),
+          ],
         ),
       ),
     );
@@ -292,6 +278,13 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   // PASSWORDS VIEW (Tab 0: Passwords, Search & Categories)
   // ----------------------------------------------------
   Widget _buildPasswordsView(VaultState vaultState) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+
     // Strictly isolate only login/password items
     final passwordItems = vaultState.filteredPasswordItems;
     final passwordGroups = vaultState.groupedPasswordItems;
@@ -299,24 +292,24 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Search Input Bar
+        // Search Input Bar (Borderless)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: TextField(
             controller: _passwordSearchController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: textPrimary),
             onChanged: (query) {
               ref.read(vaultNotifierProvider.notifier).setSearchQuery(query);
             },
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFF1E293B),
+              fillColor: inputFill,
               hintText: 'Search passwords, usernames, categories...',
-              hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF10B981)),
+              hintStyle: TextStyle(color: textMuted, fontSize: 14),
+              prefixIcon: Icon(Icons.search_rounded, color: textMuted),
               suffixIcon: _passwordSearchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, color: Colors.white60, size: 18),
+                      icon: Icon(Icons.clear_rounded, color: textMuted, size: 18),
                       onPressed: () {
                         _passwordSearchController.clear();
                         ref.read(vaultNotifierProvider.notifier).setSearchQuery('');
@@ -325,16 +318,16 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                   : null,
               contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
           ),
@@ -343,7 +336,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         // Categories Section Header
         _buildSectionHeader('Categories'),
 
-        // Category Chips Bar (Passwords Only)
+        // Category Chips Bar (Passwords Only, Borderless)
         SizedBox(
           height: 44,
           child: ListView.builder(
@@ -362,18 +355,15 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                   selected: isSelected,
                   showCheckmark: false,
                   labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                    color: isSelected ? onPrimaryAction : textMuted,
                     fontWeight: FontWeight.bold,
                     fontSize: 11,
                     letterSpacing: 0.8,
                   ),
-                  backgroundColor: const Color(0xFF1E293B),
-                  selectedColor: const Color(0xFF10B981),
-                  side: BorderSide(
-                    color: isSelected ? const Color(0xFF10B981) : const Color(0xFF334155),
-                    width: 1,
-                  ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  backgroundColor: inputFill,
+                  selectedColor: primaryAction,
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   onSelected: (_) {
                     ref.read(vaultNotifierProvider.notifier).setCategoryFilter(category);
                   },
@@ -405,9 +395,16 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     List<VaultItem> passwordItems,
     List<VaultItemGroup> passwordGroups,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+
     if (state.status == VaultStatus.loading && state.allItems.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF10B981)),
+      return Center(
+        child: CircularProgressIndicator(color: primaryAction),
       );
     }
 
@@ -437,43 +434,53 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             children: [
               Icon(
                 isFilteredByCategory ? Icons.folder_open_rounded : Icons.vpn_key_outlined,
-                size: 64,
-                color: const Color(0xFF334155).withValues(alpha: 0.8),
+                size: 56,
+                color: textMuted.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 16),
               Text(
                 emptyTitle,
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Text(
                 emptySubtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white38, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                style: TextStyle(
+                  color: textMuted,
+                  fontSize: 13,
+                  height: 1.4,
                 ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add Password', style: TextStyle(fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AddEditVaultScreen(initialItemType: 'login'),
-                    ),
-                  );
-                },
               ),
+              if (!isSearching && !isFilteredByCategory) ...[
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryAction,
+                    foregroundColor: onPrimaryAction,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text(
+                    'ADD FIRST PASSWORD',
+                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddEditVaultScreen(initialItemType: 'login'),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -481,14 +488,15 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
 
     return RefreshIndicator(
-      color: const Color(0xFF10B981),
-      backgroundColor: const Color(0xFF1E293B),
+      color: primaryAction,
+      backgroundColor: inputFill,
       onRefresh: () => ref.read(vaultNotifierProvider.notifier).refresh(),
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 24, top: 4),
         itemCount: passwordGroups.length,
         itemBuilder: (context, index) {
           final group = passwordGroups[index];
+
           if (group.isMultiAccount) {
             return VaultGroupCard(
               group: group,
@@ -510,30 +518,35 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   // CARDS VIEW (Tab 1: Payment Cards Only, NO Category Bar)
   // ----------------------------------------------------
   Widget _buildCardsView(VaultState vaultState) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+
     // Strictly isolate payment card items (ignores selectedCategory)
     final cardItems = vaultState.filteredCardItems;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Card Search Input Bar
+        // Card Search Input Bar (Borderless)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: TextField(
             controller: _cardSearchController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: textPrimary),
             onChanged: (query) {
               ref.read(vaultNotifierProvider.notifier).setSearchQuery(query);
             },
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFF1E293B),
+              fillColor: inputFill,
               hintText: 'Search cards, banks, cardholder...',
-              hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF3B82F6)),
+              hintStyle: TextStyle(color: textMuted, fontSize: 14),
+              prefixIcon: Icon(Icons.search_rounded, color: textMuted),
               suffixIcon: _cardSearchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded, color: Colors.white60, size: 18),
+                      icon: Icon(Icons.clear_rounded, color: textMuted, size: 18),
                       onPressed: () {
                         _cardSearchController.clear();
                         ref.read(vaultNotifierProvider.notifier).setSearchQuery('');
@@ -542,16 +555,16 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                   : null,
               contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
           ),
@@ -569,9 +582,16 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   }
 
   Widget _buildCardContent(VaultState state, List<VaultItem> cardItems) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+
     if (state.status == VaultStatus.loading && state.allItems.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+      return Center(
+        child: CircularProgressIndicator(color: primaryAction),
       );
     }
 
@@ -585,38 +605,38 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B),
+                  color: inputFill,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF334155)),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.credit_card_rounded,
                   size: 56,
-                  color: Color(0xFF3B82F6),
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'No Payment Cards Saved',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Store your credit and debit cards with zero-knowledge encryption, bank favicons, and card network logos.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.4),
+                style: TextStyle(color: textMuted, fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6),
-                  foregroundColor: Colors.white,
+                  backgroundColor: primaryAction,
+                  foregroundColor: onPrimaryAction,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
                 ),
                 icon: const Icon(Icons.add_rounded),
                 label: const Text(
@@ -639,8 +659,8 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
 
     return RefreshIndicator(
-      color: const Color(0xFF3B82F6),
-      backgroundColor: const Color(0xFF1E293B),
+      color: primaryAction,
+      backgroundColor: inputFill,
       onRefresh: () => ref.read(vaultNotifierProvider.notifier).refresh(),
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 24, top: 4),
@@ -652,6 +672,28 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             onTap: () => _openDetailSheet(item),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedColor = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Row(
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              color: mutedColor,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }

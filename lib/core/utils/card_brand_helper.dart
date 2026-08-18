@@ -9,7 +9,7 @@ enum CardBrand {
   jcb('JCB', Icons.credit_card_rounded, Color(0xFF00377B)),
   dinersClub('Diners Club', Icons.credit_card_rounded, Color(0xFF0079BE)),
   unionPay('UnionPay', Icons.credit_card_rounded, Color(0xFFE21B23)),
-  generic('Card', Icons.credit_card_rounded, Color(0xFF334155));
+  generic('Card', Icons.credit_card_rounded, Color(0xFF27272A));
 
   final String displayName;
   final IconData icon;
@@ -18,7 +18,7 @@ enum CardBrand {
   const CardBrand(this.displayName, this.icon, this.brandColor);
 
   /// Builds a modern styled badge widget representing the card network logo
-  Widget buildBadge({double height = 24, bool showBorder = true}) {
+  Widget buildBadge({double height = 24, bool showBorder = false}) {
     switch (this) {
       case CardBrand.visa:
         return Container(
@@ -48,9 +48,9 @@ enum CardBrand {
           height: height,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
+            color: const Color(0xFF18181B),
             borderRadius: BorderRadius.circular(6),
-            border: showBorder ? Border.all(color: const Color(0xFF334155), width: 1) : null,
+            border: showBorder ? Border.all(color: const Color(0xFF3F3F46), width: 1) : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -172,19 +172,18 @@ enum CardBrand {
           height: height,
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: const Color(0xFF27272A),
             borderRadius: BorderRadius.circular(6),
-            border: showBorder ? Border.all(color: const Color(0xFF334155), width: 1) : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.credit_card_rounded, color: Color(0xFF10B981), size: 14),
+              const Icon(Icons.credit_card_rounded, color: Colors.white70, size: 14),
               const SizedBox(width: 4),
               Text(
                 displayName.toUpperCase(),
                 style: const TextStyle(
-                  color: Color(0xFF10B981),
+                  color: Colors.white70,
                   fontWeight: FontWeight.bold,
                   fontSize: 10,
                   letterSpacing: 0.5,

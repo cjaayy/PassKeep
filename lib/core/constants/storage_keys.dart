@@ -18,6 +18,9 @@ abstract final class StorageKeys {
   /// Secure Storage key for auto-sync enabled preference
   static const String autoSyncEnabledKey = 'passkeep_auto_sync_enabled';
 
+  /// Secure Storage key for app theme mode (system, light, dark)
+  static const String themeModeKey = 'passkeep_theme_mode';
+
   /// Hive Type ID constants
   static const int vaultItemTypeId = 0;
 }

@@ -482,7 +482,6 @@ void main() {
     expect(find.text('Maribank'), findsOneWidget);
 
     // Select category 'Work' on Passwords tab
-    final listFinder = find.byType(ListView).first;
     await tester.tap(find.text('WORK'));
     await tester.pumpAndSettle();
 

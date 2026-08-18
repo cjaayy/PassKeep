@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_providers.dart';
 
-/// Lock Screen requiring Master PIN or Biometric authentication to unlock PassKeep
+/// Lock screen shown when the vault is locked.
+/// Prompts for Master PIN or Biometrics to decrypt.
 class AuthLockScreen extends ConsumerStatefulWidget {
   const AuthLockScreen({super.key});
 
@@ -20,7 +22,7 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
       });
 
       if (_pin.length == 6) {
-        _attemptUnlock();
+        _submitPin();
       }
     }
   }
@@ -33,11 +35,12 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
     }
   }
 
-  Future<void> _attemptUnlock() async {
+  Future<void> _submitPin() async {
     final success = await ref.read(authNotifierProvider.notifier).unlockWithPin(_pin);
     if (!success && mounted) {
-      // Full PIN entered and failed, clear for retry
-      setState(() => _pin = '');
+      setState(() {
+        _pin = '';
+      });
     }
   }
 
@@ -49,9 +52,15 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     const maxDots = 6;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: scaffoldBg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
@@ -59,38 +68,37 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
             children: [
               const SizedBox(height: 12),
 
-              // Shield Icon
+              // Shield Icon (Borderless)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  color: inputFill,
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3), width: 2),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.shield_rounded,
                   size: 48,
-                  color: Color(0xFF10B981),
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'PassKeep Vault',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textPrimary,
                   letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Enter Master PIN to Unlock',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: textMuted, fontSize: 13),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // PIN Indicators
+              // PIN Indicators (Borderless)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(maxDots, (index) {
@@ -102,15 +110,7 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
                     height: 14,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isFilled
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFF334155),
-                      border: Border.all(
-                        color: isFilled
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFF475569),
-                        width: 1.5,
-                      ),
+                      color: isFilled ? primaryAction : inputFill,
                     ),
                   );
                 }),
@@ -121,13 +121,15 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                    color: isDark
+                        ? AppTheme.darkDestructive.withValues(alpha: 0.15)
+                        : AppTheme.lightDestructive.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     authState.errorMessage!,
                     style: const TextStyle(
-                      color: Color(0xFFF87171),
+                      color: AppTheme.darkDestructive,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -135,7 +137,7 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
                 ),
               ],
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Keypad
               _buildKeypad(authState.isBiometricsAvailable),
@@ -149,6 +151,10 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
   }
 
   Widget _buildKeypad(bool showBiometrics) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
     return Column(
       children: [
         Row(
@@ -175,7 +181,7 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
                 height: 72,
                 child: IconButton(
                   onPressed: _onBiometricPressed,
-                  icon: const Icon(Icons.fingerprint_rounded, color: Color(0xFF10B981), size: 38),
+                  icon: Icon(Icons.fingerprint_rounded, color: textPrimary, size: 36),
                 ),
               )
             else
@@ -186,7 +192,7 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
               height: 72,
               child: IconButton(
                 onPressed: _onDeletePressed,
-                icon: const Icon(Icons.backspace_outlined, color: Colors.white70, size: 26),
+                icon: Icon(Icons.backspace_outlined, color: textMuted, size: 26),
               ),
             ),
           ],
@@ -196,13 +202,17 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
   }
 
   Widget _buildKeypadButton(String digit) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+
     return Container(
+      key: Key('keypad_$digit'),
       width: 72,
       height: 72,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: inputFill,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF334155), width: 1),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(36),
@@ -210,10 +220,10 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
         child: Center(
           child: Text(
             digit,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: textPrimary,
             ),
           ),
         ),

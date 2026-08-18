@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_providers.dart';
 
 /// Screen for creating and confirming a Master PIN on first launch
@@ -109,7 +110,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
             Navigator.of(context).pop();
           }
         } else {
-          final error = ref.read(authNotifierProvider).errorMessage ?? 'Failed to setup PIN';
+          final error = ref.read(authNotifierProvider).errorMessage ?? 'Failed to configure Master PIN';
           setState(() {
             _isLoading = false;
             _validationError = error;
@@ -117,13 +118,13 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(error),
-              backgroundColor: const Color(0xFFEF4444),
+              backgroundColor: AppTheme.darkDestructive,
             ),
           );
         }
       } catch (e) {
         if (!mounted) return;
-        final error = 'Setup failed: ${e.toString()}';
+        final error = 'Failed to configure Master PIN: ${e.toString()}';
         setState(() {
           _isLoading = false;
           _validationError = error;
@@ -131,7 +132,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
-            backgroundColor: const Color(0xFFEF4444),
+            backgroundColor: AppTheme.darkDestructive,
           ),
         );
       }
@@ -142,35 +143,42 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
   Widget build(BuildContext context) {
     final currentPin = _isConfirming ? _confirmedPin : _enteredPin;
     const maxDigits = 6;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scaffoldBg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: scaffoldBg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
           child: Column(
             children: [
               const SizedBox(height: 12),
-              // Brand Icon
+              // Brand Icon (Borderless)
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  color: inputFill,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.lock_reset_rounded,
                   size: 42,
-                  color: Color(0xFF10B981),
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 14),
               Text(
                 _isConfirming ? 'Confirm Master PIN' : 'Create Master PIN',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -179,30 +187,23 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                     ? 'Re-enter your PIN to confirm'
                     : 'This PIN will derive your Zero-Knowledge encryption key.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: textMuted, fontSize: 13),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
-              // PIN Indicator Dots
+              // PIN Indicator Dots (Borderless)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(maxDigits, (index) {
                   final isFilled = index < currentPin.length;
-                  return Container(
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     width: 14,
                     height: 14,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isFilled
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFF334155),
-                      border: Border.all(
-                        color: isFilled
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFF475569),
-                        width: 1.5,
-                      ),
+                      color: isFilled ? primaryAction : inputFill,
                     ),
                   );
                 }),
@@ -213,14 +214,14 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                 Text(
                   _validationError!,
                   style: const TextStyle(
-                    color: Color(0xFFEF4444),
+                    color: AppTheme.darkDestructive,
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Numeric Keypad
               _buildKeypad(),
@@ -230,12 +231,12 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
               // Next / Submit Button
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 50,
                 child: ElevatedButton(
                   key: const Key('submit_pin_button'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
+                    backgroundColor: primaryAction,
+                    foregroundColor: onPrimaryAction,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -243,18 +244,23 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                   ),
                   onPressed: (currentPin.length >= 6 && !_isLoading) ? _handleNextOrSubmit : null,
                   child: _isLoading
-                      ? const Text(
-                          'Setting up...',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white70),
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: onPrimaryAction,
+                          ),
                         )
                       : Text(
                           _isConfirming ? 'Complete Setup' : 'Continue',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                 ),
               ),
 
-              if (_isConfirming)
+              if (_isConfirming) ...[
+                const SizedBox(height: 4),
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -264,8 +270,9 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                       _validationError = null;
                     });
                   },
-                  child: const Text('Back to PIN Creation', style: TextStyle(color: Colors.white60)),
+                  child: Text('Start Over', style: TextStyle(color: textMuted)),
                 ),
+              ],
             ],
           ),
         ),
@@ -280,17 +287,17 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: ['1', '2', '3'].map((d) => _buildKeypadButton(d)).toList(),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: ['4', '5', '6'].map((d) => _buildKeypadButton(d)).toList(),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: ['7', '8', '9'].map((d) => _buildKeypadButton(d)).toList(),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -300,9 +307,14 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
               width: 72,
               height: 72,
               child: IconButton(
-                key: const Key('keypad_backspace'),
-                onPressed: _isLoading ? null : _onDeletePressed,
-                icon: const Icon(Icons.backspace_outlined, color: Colors.white70, size: 26),
+                onPressed: _onDeletePressed,
+                icon: Icon(
+                  Icons.backspace_outlined,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppTheme.darkTextMuted
+                      : AppTheme.lightTextMuted,
+                  size: 26,
+                ),
               ),
             ),
           ],
@@ -312,25 +324,28 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
   }
 
   Widget _buildKeypadButton(String digit) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+
     return Container(
+      key: Key('keypad_$digit'),
       width: 72,
       height: 72,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
+        color: inputFill,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF334155), width: 1),
       ),
       child: InkWell(
-        key: Key('keypad_$digit'),
         borderRadius: BorderRadius.circular(36),
-        onTap: _isLoading ? null : () => _onDigitPressed(digit),
+        onTap: () => _onDigitPressed(digit),
         child: Center(
           child: Text(
             digit,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: textPrimary,
             ),
           ),
         ),

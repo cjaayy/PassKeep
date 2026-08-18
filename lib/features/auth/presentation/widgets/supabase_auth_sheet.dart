@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../providers/supabase_auth_providers.dart';
 
@@ -70,11 +71,12 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
       }
 
       if (mounted) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Signed in as $email. Vault synced.'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -101,11 +103,12 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
       }
 
       if (mounted) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Account created for $email. Vault connected.'),
-            backgroundColor: const Color(0xFF10B981),
+            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -116,11 +119,18 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
   @override
   Widget build(BuildContext context) {
     final userState = ref.watch(supabaseUserProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceBg = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: surfaceBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
         child: Padding(
@@ -139,7 +149,7 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF475569),
+                      color: textMuted.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -152,17 +162,17 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                        color: inputFill,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.cloud_sync_rounded,
-                        color: Color(0xFF10B981),
+                        color: textPrimary,
                         size: 26,
                       ),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -171,13 +181,13 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: textPrimary,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             'Sign in to sync your encrypted vault across devices',
-                            style: TextStyle(color: Colors.white60, fontSize: 12),
+                            style: TextStyle(color: textMuted, fontSize: 12),
                           ),
                         ],
                       ),
@@ -186,22 +196,22 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
                 ),
                 const SizedBox(height: 18),
 
-                // Tab bar
+                // Tab bar (Borderless)
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
+                    color: inputFill,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF334155)),
                   ),
                   child: TabBar(
                     controller: _tabController,
                     indicatorSize: TabBarIndicatorSize.tab,
                     indicator: BoxDecoration(
-                      color: const Color(0xFF10B981),
+                      color: primaryAction,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white60,
+                    labelColor: onPrimaryAction,
+                    unselectedLabelColor: textMuted,
+                    dividerColor: Colors.transparent,
                     labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     tabs: const [
                       Tab(text: 'Sign In'),
@@ -211,24 +221,25 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
                 ),
                 const SizedBox(height: 16),
 
-                // Error Banner
+                // Error Banner (Borderless)
                 if (userState.errorMessage != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      color: isDark
+                          ? AppTheme.darkDestructive.withValues(alpha: 0.15)
+                          : AppTheme.lightDestructive.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded, color: Color(0xFFF87171), size: 20),
+                        const Icon(Icons.error_outline_rounded, color: AppTheme.darkDestructive, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             userState.errorMessage!,
-                            style: const TextStyle(color: Color(0xFFF87171), fontSize: 13),
+                            style: const TextStyle(color: AppTheme.darkDestructive, fontSize: 13),
                           ),
                         ),
                       ],
@@ -258,6 +269,13 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
   }
 
   Widget _buildSignInTab(bool isLoading) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+
     return Form(
       key: _signInFormKey,
       child: Column(
@@ -266,10 +284,17 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           TextFormField(
             controller: _signInEmailController,
             keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: textPrimary),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFill,
               hintText: 'Email address',
-              prefixIcon: Icon(Icons.email_outlined, color: Color(0xFF10B981)),
+              hintStyle: TextStyle(color: textMuted),
+              prefixIcon: Icon(Icons.email_outlined, color: textMuted),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) return 'Email is required';
@@ -281,16 +306,23 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           TextFormField(
             controller: _signInPasswordController,
             obscureText: _signInObscurePassword,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: textPrimary),
             decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFill,
               hintText: 'Account password',
-              prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF10B981)),
+              hintStyle: TextStyle(color: textMuted),
+              prefixIcon: Icon(Icons.lock_outline_rounded, color: textMuted),
               suffixIcon: IconButton(
                 icon: Icon(
                   _signInObscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.white60,
+                  color: textMuted,
                 ),
                 onPressed: () => setState(() => _signInObscurePassword = !_signInObscurePassword),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
             validator: (val) {
@@ -301,22 +333,22 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           const SizedBox(height: 22),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
+                backgroundColor: primaryAction,
+                foregroundColor: onPrimaryAction,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
               onPressed: isLoading ? null : _handleSignIn,
               child: isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: onPrimaryAction),
                     )
-                  : const Text('Sign In & Sync Vault', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  : const Text('Sign In & Sync Vault', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ),
         ],
@@ -325,6 +357,13 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
   }
 
   Widget _buildSignUpTab(bool isLoading) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
+    final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+
     return Form(
       key: _signUpFormKey,
       child: Column(
@@ -333,10 +372,17 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           TextFormField(
             controller: _signUpEmailController,
             keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: textPrimary),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFill,
               hintText: 'Email address',
-              prefixIcon: Icon(Icons.email_outlined, color: Color(0xFF10B981)),
+              hintStyle: TextStyle(color: textMuted),
+              prefixIcon: Icon(Icons.email_outlined, color: textMuted),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) return 'Email is required';
@@ -348,16 +394,23 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           TextFormField(
             controller: _signUpPasswordController,
             obscureText: _signUpObscurePassword,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: textPrimary),
             decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFill,
               hintText: 'Password (min. 6 characters)',
-              prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF10B981)),
+              hintStyle: TextStyle(color: textMuted),
+              prefixIcon: Icon(Icons.lock_outline_rounded, color: textMuted),
               suffixIcon: IconButton(
                 icon: Icon(
                   _signUpObscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.white60,
+                  color: textMuted,
                 ),
                 onPressed: () => setState(() => _signUpObscurePassword = !_signUpObscurePassword),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
               ),
             ),
             validator: (val) {
@@ -369,10 +422,17 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           TextFormField(
             controller: _signUpConfirmPasswordController,
             obscureText: _signUpObscurePassword,
-            style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(
+            style: TextStyle(color: textPrimary),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: inputFill,
               hintText: 'Confirm password',
-              prefixIcon: Icon(Icons.lock_reset_rounded, color: Color(0xFF10B981)),
+              hintStyle: TextStyle(color: textMuted),
+              prefixIcon: Icon(Icons.lock_reset_rounded, color: textMuted),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
             ),
             validator: (val) {
               if (val != _signUpPasswordController.text) return 'Passwords do not match';
@@ -382,22 +442,22 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
+                backgroundColor: primaryAction,
+                foregroundColor: onPrimaryAction,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
               onPressed: isLoading ? null : _handleSignUp,
               child: isLoading
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: onPrimaryAction),
                     )
-                  : const Text('Create Account & Connect', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  : const Text('Create Account & Connect', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ),
         ],
