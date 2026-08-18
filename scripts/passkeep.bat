@@ -32,7 +32,7 @@ echo   [1] Fast Debug (Attach Mode - Instant / No Rebuild)
 echo   [2] Debug Mode - Physical Device (USB / Full Build)
 echo   [3] Debug Mode - Physical Device (Wireless Wi-Fi)
 echo   [4] Pair Wireless Device (ADB Pair - 1-Time Setup)
-echo   [5] Build Release APK (Obfuscated) + Open Output Folder
+echo   [5] Build and Install Release APK on Connected Phone
 echo   [6] Exit
 echo.
 echo ========================================================
@@ -175,6 +175,14 @@ echo ========================================================
 echo.
 call flutter build apk --release --obfuscate --split-debug-info=./build/app/outputs/symbols
 if !ERRORLEVEL! EQU 0 (
+    echo.
+    echo ========================================================
+    echo [INFO] Build Successful! Installing Release APK to phone...
+    echo ========================================================
+    adb install -r build\app\outputs\flutter-apk\app-release.apk
+    echo.
+    echo [INFO] Launching Release App...
+    adb shell am start -n com.passkeep.passkeep/.MainActivity
     echo.
     echo ========================================================
     echo SUCCESS! Opening APK output folder...
