@@ -358,7 +358,7 @@ void main() {
     expect(find.text('No passwords saved in this category yet.'), findsOneWidget);
   });
 
-  testWidgets('VaultHomeScreen switches to Cards tab and opens Add chooser sheet',
+  testWidgets('VaultHomeScreen switches to Cards tab without category chips and context-aware Add opens Card form',
       (WidgetTester tester) async {
     final fakeLocal = FakeWidgetLocalDataSource();
     fakeLocal.items.add(
@@ -410,13 +410,15 @@ void main() {
     expect(find.text('Payment Cards'), findsOneWidget);
     expect(find.text('BDO Visa Gold'), findsOneWidget);
 
-    // Tap Add button in Bottom Navigation Bar
+    // Tap Add button in Bottom Navigation Bar (Context-aware: opens Card form directly)
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
 
-    // Verify Add Chooser Modal Sheet opens
-    expect(find.text('Add to PassKeep'), findsOneWidget);
-    expect(find.text('Password / Login'), findsOneWidget);
-    expect(find.text('Payment Card'), findsOneWidget);
+    // Verify AddEditVaultScreen opened in Payment Card mode
+    expect(find.text('New Payment Card'), findsOneWidget);
+    expect(find.text('CARDHOLDER NAME'), findsOneWidget);
+    expect(find.text('CARD NUMBER'), findsOneWidget);
+    // Verify Category selection is NOT rendered for cards
+    expect(find.text('CATEGORY'), findsNothing);
   });
 }

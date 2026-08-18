@@ -146,7 +146,9 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   late TextEditingController _cardNumberController;
   late TextEditingController _cardExpiryController;
   late TextEditingController _cardCvvController;
+  late TextEditingController _cardPinController;
   bool _isCvvVisible = false;
+  bool _isCardPinVisible = false;
 
   static const List<String> _presetServices = [
     'Google / Gmail',
@@ -219,7 +221,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       _isCustomCategory = true;
       _customCategoryController = TextEditingController(text: existingCategory);
     } else {
-      _selectedCategoryOption = isExistingCard ? 'Finance' : 'General';
+      _selectedCategoryOption = 'General';
       _isCustomCategory = false;
       _customCategoryController = TextEditingController();
     }
@@ -234,6 +236,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     _cardNumberController = TextEditingController();
     _cardExpiryController = TextEditingController();
     _cardCvvController = TextEditingController();
+    _cardPinController = TextEditingController();
 
     // Decrypt fields if editing
     if (widget.existingItem != null) {
@@ -251,6 +254,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           _cardNumberController = TextEditingController(text: card.cardNumber);
           _cardExpiryController = TextEditingController(text: card.expiryDate);
           _cardCvvController = TextEditingController(text: card.cvv);
+          _cardPinController = TextEditingController(text: card.cardPin);
           _usernameController = TextEditingController();
           _accountNumberController = TextEditingController();
           _passwordController = TextEditingController();
@@ -317,6 +321,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     _cardNumberController.dispose();
     _cardExpiryController.dispose();
     _cardCvvController.dispose();
+    _cardPinController.dispose();
     super.dispose();
   }
 
@@ -347,10 +352,6 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       final encryptionService = ref.read(encryptionServiceProvider);
       final itemIv = encryptionService.generateRandomIv();
 
-      final finalCategory = _isCustomCategory
-          ? toTitleCase(_customCategoryController.text.trim())
-          : _selectedCategoryOption;
-
       VaultItem itemToSave;
 
       if (_selectedItemType == 'card') {
@@ -360,6 +361,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           cardNumber: _cardNumberController.text.trim(),
           expiryDate: _cardExpiryController.text.trim(),
           cvv: _cardCvvController.text.trim(),
+          cardPin: _cardPinController.text.trim(),
         );
 
         final encCardDetails = encryptionService.encrypt(
@@ -385,14 +387,18 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           passwordEncrypted: encCardNumber.cipherTextBase64,
           cardDetailsEnc: encCardDetails.cipherTextBase64,
           iv: itemIv,
-          category: finalCategory,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          category: 'Cards', // Cards do not use categories
+          notes: null,
           isSynced: false,
           updatedAt: DateTime.now(),
           accountNumber: card.maskedCardNumber,
         );
       } else {
         // Build and encrypt standard Login details
+        final finalCategory = _isCustomCategory
+            ? toTitleCase(_customCategoryController.text.trim())
+            : _selectedCategoryOption;
+
         final userTrimmed = _usernameController.text.trim();
         final accountTrimmed = _accountNumberController.text.trim();
         final primaryIdentifier = userTrimmed.isNotEmpty ? userTrimmed : accountTrimmed;
@@ -449,20 +455,23 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to encrypt item: ${e.toString()}'),
+            content: Text('Failed to save item: $e'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
   }
 
   Widget _buildSectionLabel(String label) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6.0),
+      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
       child: Text(
         label.toUpperCase(),
         style: const TextStyle(
@@ -530,9 +539,6 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                           if (_selectedItemType != 'login') {
                             setState(() {
                               _selectedItemType = 'login';
-                              if (_selectedCategoryOption == 'Finance' && !isEditing) {
-                                _selectedCategoryOption = 'General';
-                              }
                             });
                           }
                         },
@@ -547,13 +553,13 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                Icons.key_rounded,
+                                Icons.vpn_key_rounded,
                                 size: 16,
                                 color: !isCard ? Colors.white : const Color(0xFF94A3B8),
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'LOGIN / PASSWORD',
+                                'PASSWORD',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -572,9 +578,6 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                           if (_selectedItemType != 'card') {
                             setState(() {
                               _selectedItemType = 'card';
-                              if (_selectedCategoryOption == 'General' && !isEditing) {
-                                _selectedCategoryOption = 'Finance';
-                              }
                             });
                           }
                         },
@@ -582,7 +585,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: isCard ? const Color(0xFF10B981) : Colors.transparent,
+                            color: isCard ? const Color(0xFF3B82F6) : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -613,8 +616,11 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
               ),
               const SizedBox(height: 18),
 
+              // ====================================================
+              // PAYMENT CARD FORM (Zero-Knowledge, No Category/Notes)
+              // ====================================================
               if (isCard) ...[
-                // PAYMENT CARD FORM FIELDS
+                // Card Title / Bank Name
                 _buildSectionLabel('Card Title / Bank Name'),
                 TextFormField(
                   controller: _cardTitleController,
@@ -626,7 +632,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     fillColor: const Color(0xFF1E293B),
                     hintText: 'e.g. BPI Gold Visa, GCash Card, Maya Card',
                     hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.account_balance_rounded, color: Color(0xFF10B981)),
+                    prefixIcon: const Icon(Icons.account_balance_rounded, color: Color(0xFF3B82F6)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
@@ -637,7 +643,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                     ),
                   ),
                   validator: (val) =>
@@ -656,7 +662,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     fillColor: const Color(0xFF1E293B),
                     hintText: 'e.g. JUAN DELA CRUZ',
                     hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF10B981)),
+                    prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF3B82F6)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
@@ -667,7 +673,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                     ),
                   ),
                   validator: (val) =>
@@ -688,7 +694,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     fillColor: const Color(0xFF1E293B),
                     hintText: 'XXXX XXXX XXXX XXXX',
                     hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.credit_card_rounded, color: Color(0xFF10B981)),
+                    prefixIcon: const Icon(Icons.credit_card_rounded, color: Color(0xFF3B82F6)),
                     suffixIcon: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
                       child: CardBrandHelper.detectBrand(_cardNumberController.text).buildBadge(height: 22),
@@ -703,7 +709,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                     ),
                   ),
                   validator: (val) {
@@ -735,7 +741,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                               fillColor: const Color(0xFF1E293B),
                               hintText: 'MM/YY',
                               hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                              prefixIcon: const Icon(Icons.calendar_today_rounded, color: Color(0xFF10B981), size: 18),
+                              prefixIcon: const Icon(Icons.calendar_today_rounded, color: Color(0xFF3B82F6), size: 18),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
@@ -746,7 +752,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                               ),
                             ),
                             validator: (val) {
@@ -784,7 +790,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                               fillColor: const Color(0xFF1E293B),
                               hintText: '123',
                               hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                              prefixIcon: const Icon(Icons.security_rounded, color: Color(0xFF10B981), size: 18),
+                              prefixIcon: const Icon(Icons.security_rounded, color: Color(0xFF3B82F6), size: 18),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _isCvvVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
@@ -803,7 +809,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
                               ),
                             ),
                             validator: (val) {
@@ -819,8 +825,49 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 18),
+
+                // Optional Card / ATM PIN
+                _buildSectionLabel('Card PIN (Optional)'),
+                TextFormField(
+                  controller: _cardPinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: !_isCardPinVisible,
+                  maxLength: 6,
+                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                  style: const TextStyle(color: Colors.white, letterSpacing: 2.0, fontFamily: 'monospace'),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFF1E293B),
+                    hintText: 'ATM / Online PIN',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                    prefixIcon: const Icon(Icons.pin_rounded, color: Color(0xFF3B82F6), size: 18),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isCardPinVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                        color: Colors.white60,
+                        size: 18,
+                      ),
+                      onPressed: () => setState(() => _isCardPinVisible = !_isCardPinVisible),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                    ),
+                  ),
+                ),
               ] else ...[
-                // LOGIN / PASSWORD FORM FIELDS
+                // ====================================================
+                // LOGIN / PASSWORD FORM
+                // ====================================================
                 _buildSectionLabel('Title / Platform Service'),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedService,
@@ -1040,64 +1087,18 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   validator: (val) =>
                       (val == null || val.isEmpty) ? 'Password or PIN is required' : null,
                 ),
-              ],
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
 
-              // Category Selector (Shared)
-              _buildSectionLabel('Category'),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCategoryOption,
-                dropdownColor: const Color(0xFF1E293B),
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFF1E293B),
-                  prefixIcon: const Icon(Icons.folder_outlined, color: Color(0xFF10B981)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
-                  ),
-                ),
-                items: _presetCategories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _selectedCategoryOption = val;
-                      _isCustomCategory = (val == 'Custom...');
-                      if (!_isCustomCategory) {
-                        _customCategoryController.clear();
-                      }
-                    });
-                  }
-                },
-              ),
-
-              if (_isCustomCategory) ...[
-                const SizedBox(height: 10),
-                TextFormField(
-                  controller: _customCategoryController,
-                  textCapitalization: TextCapitalization.words,
-                  inputFormatters: [TitleCaseTextInputFormatter()],
-                  style: const TextStyle(color: Colors.white),
+                // Category Selector (Only for Passwords)
+                _buildSectionLabel('Category'),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedCategoryOption,
+                  dropdownColor: const Color(0xFF1E293B),
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: const Color(0xFF1E293B),
-                    hintText: 'Enter custom category (e.g. Banking, Crypto)',
-                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                    prefixIcon: const Icon(Icons.create_new_folder_outlined, color: Color(0xFF10B981)),
+                    prefixIcon: const Icon(Icons.folder_outlined, color: Color(0xFF10B981)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
@@ -1111,43 +1112,87 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                       borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
                     ),
                   ),
-                  validator: (val) =>
-                      (_isCustomCategory && (val == null || val.trim().isEmpty))
-                          ? 'Custom category is required'
-                          : null,
+                  items: _presetCategories.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() {
+                        _selectedCategoryOption = val;
+                        _isCustomCategory = (val == 'Custom...');
+                        if (!_isCustomCategory) {
+                          _customCategoryController.clear();
+                        }
+                      });
+                    }
+                  },
+                ),
+
+                if (_isCustomCategory) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _customCategoryController,
+                    textCapitalization: TextCapitalization.words,
+                    inputFormatters: [TitleCaseTextInputFormatter()],
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color(0xFF1E293B),
+                      hintText: 'Enter custom category (e.g. Banking, Crypto)',
+                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                      prefixIcon: const Icon(Icons.create_new_folder_outlined, color: Color(0xFF10B981)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                      ),
+                    ),
+                    validator: (val) =>
+                        (_isCustomCategory && (val == null || val.trim().isEmpty))
+                            ? 'Custom category is required'
+                            : null,
+                  ),
+                ],
+                const SizedBox(height: 18),
+
+                // Notes Field (Only for Passwords)
+                _buildSectionLabel('Secure Notes (Optional)'),
+                TextFormField(
+                  controller: _notesController,
+                  maxLines: 4,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFF1E293B),
+                    hintText: '2FA Backup codes, PINs, or security answers...',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                    ),
+                  ),
                 ),
               ],
-              const SizedBox(height: 18),
-
-              // Notes Field (Shared)
-              _buildSectionLabel('Secure Notes (Optional)'),
-              TextFormField(
-                controller: _notesController,
-                maxLines: 4,
-                textCapitalization: TextCapitalization.sentences,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFF1E293B),
-                  hintText: isCard
-                      ? 'ATM PIN, Billing Address, Customer Service number...'
-                      : '2FA Backup codes, PINs, or security answers...',
-                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-                  alignLabelWithHint: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
-                  ),
-                ),
-              ),
               const SizedBox(height: 32),
 
               // Save Button
@@ -1156,14 +1201,16 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
+                    backgroundColor: isCard ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   onPressed: _isSaving ? null : _handleSave,
                   child: Text(
-                    isEditing ? 'UPDATE ENTRY' : 'SAVE ENCRYPTED ITEM',
+                    isEditing
+                        ? (isCard ? 'UPDATE PAYMENT CARD' : 'UPDATE PASSWORD')
+                        : (isCard ? 'SAVE PAYMENT CARD' : 'SAVE PASSWORD'),
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                   ),
                 ),

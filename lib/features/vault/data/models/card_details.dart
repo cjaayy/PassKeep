@@ -7,12 +7,14 @@ class CardDetails {
   final String cardNumber;
   final String expiryDate;
   final String cvv;
+  final String cardPin;
 
   const CardDetails({
     this.cardholderName = '',
     this.cardNumber = '',
     this.expiryDate = '',
     this.cvv = '',
+    this.cardPin = '',
   });
 
   Map<String, dynamic> toMap() => {
@@ -20,6 +22,7 @@ class CardDetails {
         'cardNumber': cardNumber,
         'expiryDate': expiryDate,
         'cvv': cvv,
+        'cardPin': cardPin,
       };
 
   factory CardDetails.fromMap(Map<String, dynamic> map) => CardDetails(
@@ -27,6 +30,7 @@ class CardDetails {
         cardNumber: (map['cardNumber'] as String?) ?? '',
         expiryDate: (map['expiryDate'] as String?) ?? '',
         cvv: (map['cvv'] as String?) ?? '',
+        cardPin: (map['cardPin'] as String?) ?? '',
       );
 
   String toJson() => jsonEncode(toMap());

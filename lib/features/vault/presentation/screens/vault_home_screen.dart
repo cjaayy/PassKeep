@@ -12,7 +12,7 @@ import '../widgets/vault_group_card.dart';
 import '../widgets/vault_item_card.dart';
 import 'add_edit_vault_screen.dart';
 
-/// Main Dashboard Screen for PassKeep with Modern Bottom Navigation Bar
+/// Main Dashboard Screen for PassKeep with Context-Aware Bottom Navigation Bar
 class VaultHomeScreen extends ConsumerStatefulWidget {
   const VaultHomeScreen({super.key});
 
@@ -23,7 +23,8 @@ class VaultHomeScreen extends ConsumerStatefulWidget {
 class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     with SingleTickerProviderStateMixin {
   int _selectedTabIndex = 0; // 0: Passwords, 1: Cards, 2: Settings
-  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _passwordSearchController = TextEditingController();
+  final TextEditingController _cardSearchController = TextEditingController();
   late AnimationController _syncAnimationController;
 
   @override
@@ -40,7 +41,8 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _passwordSearchController.dispose();
+    _cardSearchController.dispose();
     _syncAnimationController.dispose();
     super.dispose();
   }
@@ -81,126 +83,16 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
   }
 
-  void _showAddChooserSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF0F172A),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  void _onAddTapped() {
+    // Context-aware Add Trigger:
+    // If on Cards tab -> open AddEditVaultScreen with 'card' mode
+    // Otherwise -> open AddEditVaultScreen with 'login' mode
+    final initialType = _selectedTabIndex == 1 ? 'card' : 'login';
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddEditVaultScreen(initialItemType: initialType),
       ),
-      builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF475569),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Add to PassKeep',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Choose the type of item you would like to store securely:',
-                  style: TextStyle(color: Colors.white60, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-
-                // Option 1: New Password
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  tileColor: const Color(0xFF1E293B),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFF334155)),
-                  ),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.vpn_key_rounded, color: Color(0xFF10B981), size: 22),
-                  ),
-                  title: const Text(
-                    'Password / Login',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  subtitle: const Text(
-                    'Store credentials for websites, apps, and services',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditVaultScreen(initialItemType: 'login'),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Option 2: New Payment Card
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  tileColor: const Color(0xFF1E293B),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFF334155)),
-                  ),
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.credit_card_rounded, color: Color(0xFF3B82F6), size: 22),
-                  ),
-                  title: const Text(
-                    'Payment Card',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  subtitle: const Text(
-                    'Credit or debit card with bank logo & network',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEditVaultScreen(initialItemType: 'card'),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -232,7 +124,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
 
     final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
 
-    // Calculate active navigation index: 0 -> Passwords (nav 0), 1 -> Cards (nav 2), 2 -> Settings (nav 3)
+    // Calculate active navigation bar index
     int navIndex;
     if (_selectedTabIndex == 0) {
       navIndex = 0;
@@ -245,13 +137,17 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: _selectedTabIndex == 2
-          ? null // SettingsScreen has its own Scaffold and AppBar
+          ? null // SettingsScreen provides its own AppBar
           : AppBar(
               backgroundColor: const Color(0xFF0F172A),
               elevation: 0,
               title: Row(
                 children: [
-                  const Icon(Icons.shield_rounded, color: Color(0xFF10B981), size: 28),
+                  Icon(
+                    _selectedTabIndex == 1 ? Icons.credit_card_rounded : Icons.shield_rounded,
+                    color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     _selectedTabIndex == 1 ? 'Payment Cards' : 'PassKeep',
@@ -292,9 +188,9 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
       body: IndexedStack(
         index: _selectedTabIndex,
         children: [
-          // Tab 0: Passwords View
+          // Tab 0: Passwords View (Search + Category Filter Chips + Login Items)
           _buildPasswordsView(vaultState),
-          // Tab 1: Cards View
+          // Tab 1: Cards View (Search + Pure Payment Cards List, NO Category Chips)
           _buildCardsView(vaultState),
           // Tab 2: Settings View
           const SettingsScreen(),
@@ -310,11 +206,13 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         child: NavigationBarTheme(
           data: NavigationBarThemeData(
             backgroundColor: const Color(0xFF0F172A),
-            indicatorColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+            indicatorColor: _selectedTabIndex == 1
+                ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
+                : const Color(0xFF10B981).withValues(alpha: 0.2),
             labelTextStyle: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return const TextStyle(
-                  color: Color(0xFF10B981),
+                return TextStyle(
+                  color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 );
@@ -327,7 +225,10 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             }),
             iconTheme: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return const IconThemeData(color: Color(0xFF10B981), size: 24);
+                return IconThemeData(
+                  color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
+                  size: 24,
+                );
               }
               return const IconThemeData(color: Color(0xFF64748B), size: 24);
             }),
@@ -338,7 +239,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               if (index == 0) {
                 setState(() => _selectedTabIndex = 0);
               } else if (index == 1) {
-                _showAddChooserSheet();
+                _onAddTapped();
               } else if (index == 2) {
                 setState(() => _selectedTabIndex = 1);
               } else if (index == 3) {
@@ -354,16 +255,16 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               NavigationDestination(
                 icon: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
+                  decoration: BoxDecoration(
+                    color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
                 ),
                 selectedIcon: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
+                  decoration: BoxDecoration(
+                    color: _selectedTabIndex == 1 ? const Color(0xFF3B82F6) : const Color(0xFF10B981),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
@@ -388,7 +289,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   }
 
   // ----------------------------------------------------
-  // PASSWORDS VIEW (Tab 0)
+  // PASSWORDS VIEW (Tab 0: Passwords, Search & Categories)
   // ----------------------------------------------------
   Widget _buildPasswordsView(VaultState vaultState) {
     // Filter only login/password items
@@ -404,7 +305,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: TextField(
-            controller: _searchController,
+            controller: _passwordSearchController,
             style: const TextStyle(color: Colors.white),
             onChanged: (query) {
               ref.read(vaultNotifierProvider.notifier).setSearchQuery(query);
@@ -415,11 +316,11 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               hintText: 'Search passwords, usernames, categories...',
               hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
               prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF10B981)),
-              suffixIcon: _searchController.text.isNotEmpty
+              suffixIcon: _passwordSearchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear_rounded, color: Colors.white60, size: 18),
                       onPressed: () {
-                        _searchController.clear();
+                        _passwordSearchController.clear();
                         ref.read(vaultNotifierProvider.notifier).setSearchQuery('');
                       },
                     )
@@ -444,7 +345,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         // Categories Section Header
         _buildSectionHeader('Categories'),
 
-        // Category Chips Bar
+        // Category Chips Bar (Passwords Only)
         SizedBox(
           height: 44,
           child: ListView.builder(
@@ -485,7 +386,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         ),
         const SizedBox(height: 6),
 
-        // Vault Accounts Section Header
+        // Vault Passwords Section Header
         if (passwordItems.isNotEmpty)
           _buildSectionHeader(
             passwordGroups.length == passwordItems.length
@@ -521,7 +422,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
 
       if (isSearching) {
         emptyTitle = 'No Matching Passwords';
-        emptySubtitle = 'No passwords match your search query.';
+        emptySubtitle = 'No accounts match your search query.';
       } else if (isFilteredByCategory) {
         emptyTitle = '${state.selectedCategory} is Empty';
         emptySubtitle = 'No passwords saved in this category yet.';
@@ -608,14 +509,57 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   }
 
   // ----------------------------------------------------
-  // CARDS VIEW (Tab 1)
+  // CARDS VIEW (Tab 1: Payment Cards Only, NO Category Bar)
   // ----------------------------------------------------
   Widget _buildCardsView(VaultState vaultState) {
+    // Filter card items
     final cardItems = vaultState.filteredItems.where((i) => i.isCard).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Card Search Input Bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: TextField(
+            controller: _cardSearchController,
+            style: const TextStyle(color: Colors.white),
+            onChanged: (query) {
+              ref.read(vaultNotifierProvider.notifier).setSearchQuery(query);
+            },
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFF1E293B),
+              hintText: 'Search cards, banks, cardholder...',
+              hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF3B82F6)),
+              suffixIcon: _cardSearchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, color: Colors.white60, size: 18),
+                      onPressed: () {
+                        _cardSearchController.clear();
+                        ref.read(vaultNotifierProvider.notifier).setSearchQuery('');
+                      },
+                    )
+                  : null,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+              ),
+            ),
+          ),
+        ),
+
+        // Section Header (No Category Chips in Cards view)
         if (cardItems.isNotEmpty) ...[
           _buildSectionHeader('Payment Cards (${cardItems.length})'),
         ],
@@ -629,7 +573,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   Widget _buildCardContent(VaultState state, List<VaultItem> cardItems) {
     if (state.status == VaultStatus.loading && state.allItems.isEmpty) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF10B981)),
+        child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
       );
     }
 
@@ -697,7 +641,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
 
     return RefreshIndicator(
-      color: const Color(0xFF10B981),
+      color: const Color(0xFF3B82F6),
       backgroundColor: const Color(0xFF1E293B),
       onRefresh: () => ref.read(vaultNotifierProvider.notifier).refresh(),
       child: ListView.builder(

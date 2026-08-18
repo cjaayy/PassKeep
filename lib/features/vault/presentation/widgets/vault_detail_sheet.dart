@@ -30,6 +30,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
   // Payment Card fields
   bool _isCardNumberVisible = false;
   bool _isCvvVisible = false;
+  bool _isCardPinVisible = false;
   CardDetails _cardDetails = const CardDetails();
 
   String? _decryptionError;
@@ -748,6 +749,43 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                     ),
                   ),
                 const SizedBox(height: 14),
+
+                // Card PIN Field (Optional)
+                if (_cardDetails.cardPin.isNotEmpty) ...[
+                  _buildFieldCard(
+                    title: 'Card PIN',
+                    content: _isCardPinVisible ? _cardDetails.cardPin : '••••',
+                    isMonospace: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _isCardPinVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                            color: Colors.white60,
+                            size: 20,
+                          ),
+                          onPressed: () => setState(() => _isCardPinVisible = !_isCardPinVisible),
+                          tooltip: 'Toggle Card PIN',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.copy_rounded, color: Color(0xFF10B981), size: 20),
+                          onPressed: () {
+                            ClipboardService.copyWithAutoClear(_cardDetails.cardPin);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Card PIN copied (clears in 30s).'),
+                                backgroundColor: Color(0xFF1E293B),
+                              ),
+                            );
+                          },
+                          tooltip: 'Copy Card PIN',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
                 // Notes Field
                 if (widget.item.notes != null && widget.item.notes!.isNotEmpty) ...[

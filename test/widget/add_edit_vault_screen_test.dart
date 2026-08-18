@@ -348,7 +348,7 @@ void main() {
     expect(savedCard.isCard, isTrue);
     expect(savedCard.type, 'card');
     expect(savedCard.title, 'Bpi Gold Visa');
-    expect(savedCard.category, 'Finance');
+    expect(savedCard.category, 'Cards');
     expect(savedCard.accountNumber, '•••• •••• •••• 2345');
     expect(savedCard.cardDetailsEnc, isNotNull);
   });
