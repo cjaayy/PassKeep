@@ -264,7 +264,9 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                     final username = _getDecryptedUsername(subItem);
                     final displaySubtitle = username.isNotEmpty
                         ? username
-                        : (subItem.usernameEncrypted.isNotEmpty ? '••••••••' : 'No username');
+                        : (subItem.accountNumber != null && subItem.accountNumber!.isNotEmpty
+                            ? subItem.accountNumber!
+                            : (subItem.usernameEncrypted.isNotEmpty ? '••••••••' : 'No identifier'));
 
                     return InkWell(
                       onTap: () => widget.onItemTap(subItem),

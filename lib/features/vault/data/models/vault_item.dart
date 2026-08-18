@@ -6,7 +6,7 @@ part 'vault_item.g.dart';
 /// Hive Type Model representing an encrypted Vault entry.
 ///
 /// Under Zero-Knowledge architecture:
-/// - [title] & [category] can remain readable for fast local indexing/searching.
+/// - [title], [category] & [accountNumber] can remain readable for fast local indexing/searching.
 /// - [usernameEncrypted], [passwordEncrypted], and [notes] are encrypted with AES-GCM/CBC.
 /// - [iv] holds the base64-encoded Initialization Vector specific to this item's encryption session.
 @HiveType(typeId: 0)
@@ -38,6 +38,9 @@ class VaultItem extends HiveObject {
   @HiveField(8)
   final DateTime updatedAt;
 
+  @HiveField(9)
+  final String? accountNumber;
+
   VaultItem({
     required this.id,
     required this.title,
@@ -48,6 +51,7 @@ class VaultItem extends HiveObject {
     this.notes,
     this.isSynced = false,
     required this.updatedAt,
+    this.accountNumber,
   });
 
   /// Creates a copy of this [VaultItem] with updated properties.
@@ -61,6 +65,8 @@ class VaultItem extends HiveObject {
     String? notes,
     bool? isSynced,
     DateTime? updatedAt,
+    String? accountNumber,
+    bool clearAccountNumber = false,
   }) {
     return VaultItem(
       id: id ?? this.id,
@@ -72,6 +78,7 @@ class VaultItem extends HiveObject {
       notes: notes ?? this.notes,
       isSynced: isSynced ?? this.isSynced,
       updatedAt: updatedAt ?? this.updatedAt,
+      accountNumber: clearAccountNumber ? null : (accountNumber ?? this.accountNumber),
     );
   }
 
@@ -87,6 +94,7 @@ class VaultItem extends HiveObject {
       'notes': notes,
       'is_synced': isSynced,
       'updated_at': updatedAt.toIso8601String(),
+      'account_number': accountNumber,
     };
   }
 
@@ -102,6 +110,7 @@ class VaultItem extends HiveObject {
       'notes': notes,
       'is_deleted': false,
       'updated_at': updatedAt.toUtc().toIso8601String(),
+      'account_number': accountNumber,
     };
   }
 
@@ -121,6 +130,7 @@ class VaultItem extends HiveObject {
       notes: map['notes'] as String?,
       isSynced: (map['is_synced'] ?? map['isSynced'] ?? false) as bool,
       updatedAt: DateTime.parse((map['updated_at'] ?? map['updatedAt']) as String),
+      accountNumber: (map['account_number'] ?? map['accountNumber']) as String?,
     );
   }
 
@@ -133,7 +143,7 @@ class VaultItem extends HiveObject {
 
   @override
   String toString() {
-    return 'VaultItem(id: $id, title: $title, category: $category, isSynced: $isSynced, updatedAt: $updatedAt)';
+    return 'VaultItem(id: $id, title: $title, category: $category, account: $accountNumber, isSynced: $isSynced, updatedAt: $updatedAt)';
   }
 
   @override
@@ -149,7 +159,8 @@ class VaultItem extends HiveObject {
         other.category == category &&
         other.notes == notes &&
         other.isSynced == isSynced &&
-        other.updatedAt == updatedAt;
+        other.updatedAt == updatedAt &&
+        other.accountNumber == accountNumber;
   }
 
   @override
@@ -162,6 +173,7 @@ class VaultItem extends HiveObject {
         category.hashCode ^
         notes.hashCode ^
         isSynced.hashCode ^
-        updatedAt.hashCode;
+        updatedAt.hashCode ^
+        accountNumber.hashCode;
   }
 }

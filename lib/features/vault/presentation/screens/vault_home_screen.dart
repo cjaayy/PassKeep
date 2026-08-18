@@ -23,7 +23,7 @@ class VaultHomeScreen extends ConsumerStatefulWidget {
 class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _categories = ['All', 'Work', 'Social', 'Finance', 'Personal'];
+  final List<String> _categories = ['All', 'Work', 'School', 'Personal', 'Finance', 'Social'];
   late AnimationController _syncAnimationController;
 
   @override

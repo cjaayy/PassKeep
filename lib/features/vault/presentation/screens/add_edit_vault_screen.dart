@@ -1,10 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../../core/utils/service_brand_helper.dart';
 import '../../data/models/vault_item.dart';
 import '../providers/vault_providers.dart';
 import '../widgets/password_generator_sheet.dart';
+
+/// Formatter that automatically capitalizes the first letter of each word
+class TitleCaseTextInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+
+    final buffer = StringBuffer();
+    bool capitalizeNext = true;
+
+    for (int i = 0; i < newValue.text.length; i++) {
+      final char = newValue.text[i];
+      if (char == ' ' || char == '/' || char == '-' || char == '_') {
+        buffer.write(char);
+        capitalizeNext = true;
+      } else if (capitalizeNext) {
+        buffer.write(char.toUpperCase());
+        capitalizeNext = false;
+      } else {
+        buffer.write(char);
+      }
+    }
+
+    final newString = buffer.toString();
+    return TextEditingValue(
+      text: newString,
+      selection: newValue.selection,
+    );
+  }
+}
+
+/// Helper function to ensure string is sanitized to Title Case
+String toTitleCase(String input) {
+  if (input.trim().isEmpty) return input.trim();
+  final words = input.trim().split(RegExp(r'\s+'));
+  return words.map((word) {
+    if (word.isEmpty) return word;
+    if (word.length == 1) return word.toUpperCase();
+    return word[0].toUpperCase() + word.substring(1).toLowerCase();
+  }).join(' ');
+}
 
 /// Screen for creating a new vault entry or editing an existing one
 class AddEditVaultScreen extends ConsumerStatefulWidget {
@@ -19,21 +65,88 @@ class AddEditVaultScreen extends ConsumerStatefulWidget {
 class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
+  late TextEditingController _customCategoryController;
   late TextEditingController _usernameController;
+  late TextEditingController _accountNumberController;
   late TextEditingController _passwordController;
   late TextEditingController _notesController;
-  String _selectedCategory = 'General';
+
+  static const List<String> _presetServices = [
+    'Google / Gmail',
+    'Facebook',
+    'Microsoft / Outlook',
+    'GitHub',
+    'Netflix',
+    'Spotify',
+    'Steam',
+    'Twitter / X',
+    'Discord',
+    'Custom...',
+  ];
+
+  static const List<String> _presetCategories = [
+    'General',
+    'Personal',
+    'Work',
+    'School',
+    'Social',
+    'Finance',
+    'Entertainment',
+    'Shopping',
+    'Developer / Tech',
+    'Utilities',
+    'Custom...',
+  ];
+
+  late String _selectedService;
+  bool _isCustomService = false;
+
+  late String _selectedCategoryOption;
+  bool _isCustomCategory = false;
+
   bool _isPasswordVisible = false;
   bool _isSaving = false;
-
-  final List<String> _categories = ['General', 'Work', 'Social', 'Finance', 'Personal'];
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.existingItem?.title ?? '');
-    _notesController = TextEditingController(text: widget.existingItem?.notes ?? '');
-    _selectedCategory = widget.existingItem?.category ?? 'General';
+
+    // Initialize Service selection
+    final existingTitle = widget.existingItem?.title.trim() ?? '';
+    if (existingTitle.isNotEmpty && _presetServices.contains(existingTitle)) {
+      _selectedService = existingTitle;
+      _isCustomService = false;
+      _titleController = TextEditingController(text: existingTitle);
+    } else if (existingTitle.isNotEmpty) {
+      _selectedService = 'Custom...';
+      _isCustomService = true;
+      _titleController = TextEditingController(text: existingTitle);
+    } else {
+      _selectedService = 'Google / Gmail';
+      _isCustomService = false;
+      _titleController = TextEditingController(text: 'Google / Gmail');
+    }
+
+    // Initialize Category selection
+    final existingCategory = widget.existingItem?.category.trim() ?? '';
+    if (existingCategory.isNotEmpty && _presetCategories.contains(existingCategory)) {
+      _selectedCategoryOption = existingCategory;
+      _isCustomCategory = false;
+      _customCategoryController = TextEditingController();
+    } else if (existingCategory.isNotEmpty) {
+      _selectedCategoryOption = 'Custom...';
+      _isCustomCategory = true;
+      _customCategoryController = TextEditingController(text: existingCategory);
+    } else {
+      _selectedCategoryOption = 'General';
+      _isCustomCategory = false;
+      _customCategoryController = TextEditingController();
+    }
+
+    _accountNumberController =
+        TextEditingController(text: widget.existingItem?.accountNumber ?? '');
+    _notesController =
+        TextEditingController(text: widget.existingItem?.notes ?? '');
 
     // Decrypt fields if editing
     if (widget.existingItem != null) {
@@ -50,8 +163,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         _usernameController = TextEditingController(text: plainUser);
         _passwordController = TextEditingController(text: plainPass);
       } catch (_) {
-        _usernameController = TextEditingController(text: '');
-        _passwordController = TextEditingController(text: '');
+        _usernameController = TextEditingController();
+        _passwordController = TextEditingController();
       }
     } else {
       _usernameController = TextEditingController();
@@ -62,7 +175,9 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _customCategoryController.dispose();
     _usernameController.dispose();
+    _accountNumberController.dispose();
     _passwordController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -85,7 +200,30 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   }
 
   Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
+    final userTrimmed = _usernameController.text.trim();
+    final accountTrimmed = _accountNumberController.text.trim();
+
+    if (!_formKey.currentState!.validate()) {
+      if (userTrimmed.isEmpty && accountTrimmed.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter either a Username/Email or an Account/Phone Number.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (userTrimmed.isEmpty && accountTrimmed.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter either a Username/Email or an Account/Phone Number.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -94,7 +232,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       final itemIv = encryptionService.generateRandomIv();
 
       final encUser = encryptionService.encrypt(
-        _usernameController.text.trim(),
+        userTrimmed,
         customIvBase64: itemIv,
       );
       final encPass = encryptionService.encrypt(
@@ -102,16 +240,25 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         customIvBase64: itemIv,
       );
 
+      final finalTitle = _isCustomService
+          ? toTitleCase(_titleController.text.trim())
+          : _selectedService;
+
+      final finalCategory = _isCustomCategory
+          ? toTitleCase(_customCategoryController.text.trim())
+          : _selectedCategoryOption;
+
       final itemToSave = VaultItem(
         id: widget.existingItem?.id ?? const Uuid().v4(),
-        title: _titleController.text.trim(),
+        title: finalTitle,
         usernameEncrypted: encUser.cipherTextBase64,
         passwordEncrypted: encPass.cipherTextBase64,
         iv: itemIv,
-        category: _selectedCategory,
+        category: finalCategory,
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         isSynced: false, // Mark unsynced so bidirectional sync engine pushes it
         updatedAt: DateTime.now(),
+        accountNumber: accountTrimmed.isEmpty ? null : accountTrimmed,
       );
 
       await ref.read(vaultNotifierProvider.notifier).saveItem(itemToSave);
@@ -140,6 +287,21 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     }
   }
 
+  Widget _buildSectionLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0),
+      child: Text(
+        label.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFF94A3B8),
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingItem != null;
@@ -150,8 +312,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
         title: Text(
-          isEditing ? 'Edit Item' : 'New Vault Item',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          isEditing ? 'Edit Vault Item' : 'New Vault Item',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
           IconButton(
@@ -174,63 +336,268 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title Field
-              _buildSectionLabel('Title / Service'),
-              TextFormField(
-                controller: _titleController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'e.g. GitHub, Google, Work VPN',
-                  prefixIcon: Icon(Icons.label_outline_rounded, color: Color(0xFF10B981)),
+              // Title / Service Selector
+              _buildSectionLabel('Title / Platform Service'),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedService,
+                dropdownColor: const Color(0xFF1E293B),
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  prefixIcon: Icon(
+                    ServiceBrandHelper.getIconForService(_selectedService),
+                    color: const Color(0xFF10B981),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                  ),
                 ),
-                validator: (val) =>
-                    (val == null || val.trim().isEmpty) ? 'Title is required' : null,
+                items: _presetServices.map((service) {
+                  return DropdownMenuItem(
+                    value: service,
+                    child: Row(
+                      children: [
+                        Icon(
+                          ServiceBrandHelper.getIconForService(service),
+                          color: const Color(0xFF94A3B8),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(service),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _selectedService = val;
+                      _isCustomService = (val == 'Custom...');
+                      if (!_isCustomService) {
+                        _titleController.text = val;
+                      } else {
+                        _titleController.clear();
+                      }
+                    });
+                  }
+                },
               ),
+
+              // Custom Title / Service Input Field
+              if (_isCustomService) ...[
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _titleController,
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [TitleCaseTextInputFormatter()],
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFF1E293B),
+                    hintText: 'Enter custom service name (e.g. Work Vpn)',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                    prefixIcon: const Icon(Icons.edit_note_rounded, color: Color(0xFF10B981)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                    ),
+                  ),
+                  validator: (val) =>
+                      (_isCustomService && (val == null || val.trim().isEmpty))
+                          ? 'Custom service name is required'
+                          : null,
+                ),
+              ],
               const SizedBox(height: 18),
 
               // Category Selector
               _buildSectionLabel('Category'),
               DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
+                initialValue: _selectedCategoryOption,
                 dropdownColor: const Color(0xFF1E293B),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.folder_outlined, color: Color(0xFF10B981)),
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  prefixIcon: const Icon(Icons.folder_outlined, color: Color(0xFF10B981)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                  ),
                 ),
-                items: _categories.map((category) {
+                items: _presetCategories.map((category) {
                   return DropdownMenuItem(
                     value: category,
                     child: Text(category),
                   );
                 }).toList(),
                 onChanged: (val) {
-                  if (val != null) setState(() => _selectedCategory = val);
+                  if (val != null) {
+                    setState(() {
+                      _selectedCategoryOption = val;
+                      _isCustomCategory = (val == 'Custom...');
+                      if (!_isCustomCategory) {
+                        _customCategoryController.clear();
+                      }
+                    });
+                  }
+                },
+              ),
+
+              // Custom Category Input Field
+              if (_isCustomCategory) ...[
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _customCategoryController,
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [TitleCaseTextInputFormatter()],
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFF1E293B),
+                    hintText: 'Enter custom category (e.g. Gaming, Cloud)',
+                    hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                    prefixIcon: const Icon(Icons.create_new_folder_outlined, color: Color(0xFF10B981)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                    ),
+                  ),
+                  validator: (val) =>
+                      (_isCustomCategory && (val == null || val.trim().isEmpty))
+                          ? 'Custom category is required'
+                          : null,
+                ),
+              ],
+              const SizedBox(height: 18),
+
+              // Username / Email Field
+              _buildSectionLabel('Username / Email (Optional if Phone/Account No. is provided)'),
+              TextFormField(
+                controller: _usernameController,
+                keyboardType: TextInputType.emailAddress,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  hintText: 'name@example.com',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                  prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF10B981)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                  ),
+                ),
+                validator: (val) {
+                  final userVal = val?.trim() ?? '';
+                  final accountVal = _accountNumberController.text.trim();
+                  if (userVal.isEmpty && accountVal.isEmpty) {
+                    return 'Enter either Username/Email or Account/Phone Number';
+                  }
+                  return null;
+                },
+                onChanged: (_) {
+                  if (_accountNumberController.text.trim().isNotEmpty) {
+                    _formKey.currentState?.validate();
+                  }
                 },
               ),
               const SizedBox(height: 18),
 
-              // Username / Email Field
-              _buildSectionLabel('Username / Email'),
+              // Account / Phone Number (Optional) Field
+              _buildSectionLabel('Account / Phone Number (Optional if Username/Email is provided)'),
               TextFormField(
-                controller: _usernameController,
+                controller: _accountNumberController,
+                keyboardType: TextInputType.phone,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  hintText: 'name@example.com',
-                  prefixIcon: Icon(Icons.person_outline_rounded, color: Color(0xFF10B981)),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  hintText: 'e.g. 09171234567, 1234-5678-90',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+                  prefixIcon: const Icon(Icons.pin_outlined, color: Color(0xFF10B981)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                  ),
                 ),
-                validator: (val) =>
-                    (val == null || val.trim().isEmpty) ? 'Username is required' : null,
+                validator: (val) {
+                  final accountVal = val?.trim() ?? '';
+                  final userVal = _usernameController.text.trim();
+                  if (accountVal.isEmpty && userVal.isEmpty) {
+                    return 'Enter either Username/Email or Account/Phone Number';
+                  }
+                  return null;
+                },
+                onChanged: (_) {
+                  if (_usernameController.text.trim().isNotEmpty) {
+                    _formKey.currentState?.validate();
+                  }
+                },
               ),
               const SizedBox(height: 18),
 
-              // Password Field with Generator button
-              _buildSectionLabel('Password'),
+              // Password / PIN Field with Generator button
+              _buildSectionLabel('Password / PIN'),
               TextFormField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
-                  hintText: 'Enter or generate password',
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
+                  hintText: 'Enter or generate password / PIN',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
                   prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF10B981)),
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -251,9 +618,21 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                       ),
                     ],
                   ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                  ),
                 ),
                 validator: (val) =>
-                    (val == null || val.isEmpty) ? 'Password is required' : null,
+                    (val == null || val.isEmpty) ? 'Password or PIN is required' : null,
               ),
               const SizedBox(height: 18),
 
@@ -262,10 +641,26 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
               TextFormField(
                 controller: _notesController,
                 maxLines: 4,
+                textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFF1E293B),
                   hintText: '2FA Backup codes, PINs, or security answers...',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
                   alignLabelWithHint: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -283,27 +678,13 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   ),
                   onPressed: _isSaving ? null : _handleSave,
                   child: Text(
-                    isEditing ? 'Update Entry' : 'Save Encrypted Item',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    isEditing ? 'UPDATE ENTRY' : 'SAVE ENCRYPTED ITEM',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6.0),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

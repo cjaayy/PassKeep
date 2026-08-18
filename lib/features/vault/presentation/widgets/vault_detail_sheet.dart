@@ -89,6 +89,19 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
     }
   }
 
+  Future<void> _copyAccountNumber(String number) async {
+    await ClipboardService.copyWithAutoClear(number);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account / Phone number copied to clipboard.'),
+          backgroundColor: Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Future<void> _copyPassword() async {
     await ClipboardService.copyWithAutoClear(_plainPassword);
     if (mounted) {
@@ -299,6 +312,21 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   ),
                 ),
                 const SizedBox(height: 14),
+
+                // Account / Phone Number field (if present)
+                if (widget.item.accountNumber != null && widget.item.accountNumber!.isNotEmpty) ...[
+                  _buildFieldCard(
+                    title: 'Account / Phone Number',
+                    content: widget.item.accountNumber!,
+                    isMonospace: true,
+                    trailing: IconButton(
+                      icon: const Icon(Icons.copy_rounded, color: Color(0xFF10B981), size: 20),
+                      onPressed: () => _copyAccountNumber(widget.item.accountNumber!),
+                      tooltip: 'Copy Account Number',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
                 // Password field
                 _buildFieldCard(

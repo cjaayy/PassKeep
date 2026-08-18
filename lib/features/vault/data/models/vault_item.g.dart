@@ -26,13 +26,14 @@ class VaultItemAdapter extends TypeAdapter<VaultItem> {
       notes: fields[6] as String?,
       isSynced: fields[7] as bool,
       updatedAt: fields[8] as DateTime,
+      accountNumber: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, VaultItem obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +51,9 @@ class VaultItemAdapter extends TypeAdapter<VaultItem> {
       ..writeByte(7)
       ..write(obj.isSynced)
       ..writeByte(8)
-      ..write(obj.updatedAt);
+      ..write(obj.updatedAt)
+      ..writeByte(9)
+      ..write(obj.accountNumber);
   }
 
   @override

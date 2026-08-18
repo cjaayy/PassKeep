@@ -52,6 +52,14 @@ class EncryptionService {
       throw const EncryptionFailure('No active encryption key available to perform encryption.');
     }
 
+    if (plainText.isEmpty) {
+      final iv = customIvBase64 ?? generateRandomIv();
+      return EncryptionResult(
+        cipherTextBase64: '',
+        ivBase64: iv,
+      );
+    }
+
     try {
       final key = Key.fromBase64(keyString);
       final iv = customIvBase64 != null
@@ -80,6 +88,10 @@ class EncryptionService {
     required String ivBase64,
     String? customKeyBase64,
   }) {
+    if (cipherTextBase64.isEmpty) {
+      return '';
+    }
+
     final keyString = customKeyBase64 ?? _activeKeyBase64;
     if (keyString == null || keyString.isEmpty) {
       throw const DecryptionFailure('No active encryption key available to perform decryption.');

@@ -91,17 +91,34 @@ class ServiceBrandHelper {
       return Icons.shopping_bag_outlined;
     }
 
-    // Finance / Banking / Crypto
+    // Finance / Banking / E-Wallets / Crypto
     if (name.contains('paypal') ||
         name.contains('stripe') ||
         name.contains('wise') ||
         name.contains('revolut') ||
+        name.contains('gcash') ||
+        name.contains('maya') ||
+        name.contains('paymaya') ||
         name.contains('bank') ||
         name.contains('chase') ||
+        name.contains('bdo') ||
+        name.contains('bpi') ||
         name.contains('crypto') ||
         name.contains('binance') ||
         name.contains('coinbase')) {
       return Icons.account_balance_wallet_outlined;
+    }
+
+    // Education / School
+    if (name.contains('school') ||
+        name.contains('university') ||
+        name.contains('college') ||
+        name.contains('canvas') ||
+        name.contains('blackboard') ||
+        name.contains('moodle') ||
+        name.contains('student') ||
+        name.contains('portal')) {
+      return Icons.school_outlined;
     }
 
     // Apple
@@ -122,6 +139,9 @@ class ServiceBrandHelper {
     switch (category.toLowerCase()) {
       case 'work':
         return Icons.work_outline_rounded;
+      case 'school':
+      case 'education':
+        return Icons.school_outlined;
       case 'social':
         return Icons.people_outline_rounded;
       case 'finance':
