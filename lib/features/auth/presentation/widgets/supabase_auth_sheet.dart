@@ -5,7 +5,9 @@ import '../providers/supabase_auth_providers.dart';
 
 /// Modal bottom sheet allowing users to Sign In or Register a Supabase account
 class SupabaseAuthSheet extends ConsumerStatefulWidget {
-  const SupabaseAuthSheet({super.key});
+  final int initialTabIndex;
+
+  const SupabaseAuthSheet({super.key, this.initialTabIndex = 0});
 
   @override
   ConsumerState<SupabaseAuthSheet> createState() => _SupabaseAuthSheetState();
@@ -31,7 +33,11 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, 1),
+    );
   }
 
   @override

@@ -28,7 +28,7 @@ class FakeWidgetLocalAuth extends Fake implements LocalAuthentication {
 }
 
 void main() {
-  testWidgets('PassKeepApp launches and navigates to PIN setup on uninitialized state',
+  testWidgets('PassKeepApp launches and navigates to WelcomeScreen on uninitialized state',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -43,6 +43,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Create Master PIN'), findsOneWidget);
+    expect(find.text('PassKeep'), findsOneWidget);
+    expect(find.text('Create Account'), findsOneWidget);
+    expect(find.text('Continue Offline (Local Storage Only)'), findsOneWidget);
   });
 }

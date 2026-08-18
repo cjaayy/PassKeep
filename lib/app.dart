@@ -4,7 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/observers/app_lock_observer.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/screens/auth_lock_screen.dart';
-import 'features/auth/presentation/screens/setup_master_pin_screen.dart';
+import 'features/auth/presentation/screens/welcome_screen.dart';
 import 'features/vault/presentation/screens/vault_home_screen.dart';
 
 /// Root widget for PassKeep application with reactive authentication routing and auto-lock lifecycle monitoring
@@ -48,7 +48,7 @@ class _PassKeepAppState extends ConsumerState<PassKeepApp> {
   Widget _buildHome(AuthStatus status) {
     switch (status) {
       case AuthStatus.uninitialized:
-        return const SetupMasterPinScreen();
+        return const WelcomeScreen();
       case AuthStatus.locked:
         return const AuthLockScreen();
       case AuthStatus.authenticated:

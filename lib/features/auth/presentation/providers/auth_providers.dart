@@ -17,25 +17,29 @@ class AuthState {
   final bool isBiometricsAvailable;
   final String? errorMessage;
   final String? masterKey;
+  final bool isOfflineOnlyMode;
 
   const AuthState({
     required this.status,
     this.isBiometricsAvailable = false,
     this.errorMessage,
     this.masterKey,
+    this.isOfflineOnlyMode = false,
   });
 
   const AuthState.initial()
       : status = AuthStatus.loading,
         isBiometricsAvailable = false,
         errorMessage = null,
-        masterKey = null;
+        masterKey = null,
+        isOfflineOnlyMode = false;
 
   AuthState copyWith({
     AuthStatus? status,
     bool? isBiometricsAvailable,
     String? errorMessage,
     String? masterKey,
+    bool? isOfflineOnlyMode,
     bool clearMasterKey = false,
   }) {
     return AuthState(
@@ -43,11 +47,13 @@ class AuthState {
       isBiometricsAvailable: isBiometricsAvailable ?? this.isBiometricsAvailable,
       errorMessage: errorMessage,
       masterKey: clearMasterKey ? null : (masterKey ?? this.masterKey),
+      isOfflineOnlyMode: isOfflineOnlyMode ?? this.isOfflineOnlyMode,
     );
   }
 
   @override
-  String toString() => 'AuthState(status: $status, biometrics: $isBiometricsAvailable, error: $errorMessage)';
+  String toString() =>
+      'AuthState(status: $status, biometrics: $isBiometricsAvailable, offlineOnly: $isOfflineOnlyMode, error: $errorMessage)';
 }
 
 /// Provider for [LocalAuthentication] instance
@@ -210,6 +216,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return false;
     }
+  }
+
+  /// Sets whether the user explicitly selected offline-only local storage mode
+  void setOfflineOnlyMode(bool isOffline) {
+    state = state.copyWith(isOfflineOnlyMode: isOffline);
   }
 
   /// Locks the vault and clears active keys from memory

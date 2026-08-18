@@ -16,17 +16,14 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    val configureAndroid = {
-        if (project.hasProperty("android")) {
-            val android = project.extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-            android?.buildToolsVersion("34.0.0")
-        }
-    }
-    if (project.state.executed) {
-        configureAndroid()
-    } else {
-        project.afterEvaluate {
-            configureAndroid()
+    afterEvaluate {
+        if (plugins.hasPlugin("com.android.application") || plugins.hasPlugin("com.android.library")) {
+            val android = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+            android?.apply {
+                compileSdkVersion(36)
+                // Forcefully clear legacy hardcoded buildToolsVersion
+                buildToolsVersion("34.0.0")
+            }
         }
     }
 }

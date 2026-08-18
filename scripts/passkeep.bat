@@ -67,9 +67,29 @@ echo ========================================================
 echo         RUNNING DEBUG MODE: USB PHYSICAL DEVICE
 echo ========================================================
 echo.
-echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit
+if not exist "build\app\outputs\flutter-apk\app-debug.apk" (
+    echo [INFO] Debug APK not found. Building via Flutter...
+    call flutter build apk --debug
+    if !ERRORLEVEL! NEQ 0 (
+        echo.
+        echo [ERROR] Flutter debug APK build failed!
+        pause
+        goto menu
+    )
+) else (
+    echo [INFO] Found pre-built Debug APK: build\app\outputs\flutter-apk\app-debug.apk
+)
 echo.
-flutter run
+echo Installing Debug APK to USB connected device...
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+echo.
+echo Launching PassKeep MainActivity...
+adb shell am start -n com.passkeep.passkeep/.MainActivity
+echo.
+echo Attaching Flutter Debugger...
+echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit / Detach
+echo.
+flutter attach
 pause
 goto menu
 
@@ -92,9 +112,30 @@ if /i "!conn_choice!"=="Y" (
     adb connect !target_ip!
     echo.
 )
-echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit
 echo.
-flutter run
+if not exist "build\app\outputs\flutter-apk\app-debug.apk" (
+    echo [INFO] Debug APK not found. Building via Flutter...
+    call flutter build apk --debug
+    if !ERRORLEVEL! NEQ 0 (
+        echo.
+        echo [ERROR] Flutter debug APK build failed!
+        pause
+        goto menu
+    )
+) else (
+    echo [INFO] Found pre-built Debug APK: build\app\outputs\flutter-apk\app-debug.apk
+)
+echo.
+echo Installing Debug APK to wireless connected device...
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+echo.
+echo Launching PassKeep MainActivity...
+adb shell am start -n com.passkeep.passkeep/.MainActivity
+echo.
+echo Attaching Flutter Debugger...
+echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit / Detach
+echo.
+flutter attach
 pause
 goto menu
 
