@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:passkeep/core/utils/card_brand_helper.dart';
 import 'package:passkeep/features/vault/data/models/card_details.dart';
 import 'package:passkeep/features/vault/data/models/vault_item.dart';
+import 'package:passkeep/features/vault/presentation/providers/vault_state.dart';
 
 void main() {
   group('VaultItem Model Tests', () {
@@ -146,6 +147,95 @@ void main() {
       expect(fromJson.cardNumber, '4123 4567 8901 2345');
       expect(fromJson.expiryDate, '12/28');
       expect(fromJson.cvv, '123');
+    });
+  });
+
+  group('VaultState Type Isolation Tests', () {
+    test('strictly separates Password and Card with identical titles', () {
+      final passwordItem = VaultItem(
+        id: 'pw-1',
+        title: 'Maribank',
+        type: VaultType.password,
+        usernameEncrypted: 'enc_user',
+        passwordEncrypted: 'enc_pass',
+        iv: 'iv_1',
+        category: 'Finance',
+        updatedAt: DateTime.now(),
+      );
+
+      final cardItem = VaultItem(
+        id: 'card-1',
+        title: 'Maribank',
+        type: VaultType.card,
+        usernameEncrypted: 'enc_holder',
+        passwordEncrypted: 'enc_num',
+        iv: 'iv_2',
+        category: 'Cards',
+        cardDetailsEnc: '{"cardNumber":"4123456789012345"}',
+        updatedAt: DateTime.now(),
+      );
+
+      final state = VaultState(
+        status: VaultStatus.success,
+        allItems: [passwordItem, cardItem],
+        filteredItems: [passwordItem, cardItem],
+        selectedCategory: 'All',
+      );
+
+      // Verify passwords separation
+      expect(state.allPasswordItems.length, 1);
+      expect(state.allPasswordItems.first.id, 'pw-1');
+      expect(state.filteredPasswordItems.length, 1);
+      expect(state.groupedPasswordItems.length, 1);
+      expect(state.groupedPasswordItems.first.count, 1);
+      expect(state.groupedPasswordItems.first.items.first.id, 'pw-1');
+
+      // Verify cards separation
+      expect(state.allCardItems.length, 1);
+      expect(state.allCardItems.first.id, 'card-1');
+      expect(state.filteredCardItems.length, 1);
+      expect(state.filteredCardItems.first.id, 'card-1');
+    });
+
+    test('category filter isolates passwords and does NOT leak into cards tab', () {
+      final passwordItem = VaultItem(
+        id: 'pw-1',
+        title: 'Maribank',
+        type: VaultType.password,
+        usernameEncrypted: 'enc_user',
+        passwordEncrypted: 'enc_pass',
+        iv: 'iv_1',
+        category: 'Personal',
+        updatedAt: DateTime.now(),
+      );
+
+      final cardItem = VaultItem(
+        id: 'card-1',
+        title: 'Maribank Debit',
+        type: VaultType.card,
+        usernameEncrypted: 'enc_holder',
+        passwordEncrypted: 'enc_num',
+        iv: 'iv_2',
+        category: 'Cards',
+        cardDetailsEnc: '{"cardNumber":"4123456789012345"}',
+        updatedAt: DateTime.now(),
+      );
+
+      // User selects category 'Work' (which matches 0 passwords)
+      final state = VaultState(
+        status: VaultStatus.success,
+        allItems: [passwordItem, cardItem],
+        filteredItems: [cardItem],
+        selectedCategory: 'Work',
+      );
+
+      // Passwords list is empty because category is Work
+      expect(state.filteredPasswordItems.isEmpty, isTrue);
+      expect(state.groupedPasswordItems.isEmpty, isTrue);
+
+      // Cards list is STILL INTACT because category filter does not apply to cards
+      expect(state.filteredCardItems.length, 1);
+      expect(state.filteredCardItems.first.id, 'card-1');
     });
   });
 }

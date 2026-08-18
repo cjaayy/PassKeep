@@ -146,21 +146,24 @@ class VaultNotifier extends StateNotifier<VaultState> {
   }) {
     var result = items;
 
-    // Filter by Category
+    // Filter by Category (Only applies to Password/Login items)
     if (category.trim().isNotEmpty && category.trim().toLowerCase() != 'all') {
       final normCategory = category.trim().toLowerCase();
       result = result
-          .where((item) => item.category.trim().toLowerCase() == normCategory)
+          .where((item) =>
+              item.type == VaultType.card ||
+              item.category.trim().toLowerCase() == normCategory)
           .toList();
     }
 
-    // Filter by Search Query (title or category)
+    // Filter by Search Query (title, category, or account/card number)
     if (query.trim().isNotEmpty) {
       final normQuery = query.trim().toLowerCase();
       result = result
           .where((item) =>
               item.title.toLowerCase().contains(normQuery) ||
-              item.category.toLowerCase().contains(normQuery))
+              item.category.toLowerCase().contains(normQuery) ||
+              (item.accountNumber?.toLowerCase().contains(normQuery) ?? false))
           .toList();
     }
 

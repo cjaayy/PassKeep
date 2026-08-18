@@ -292,11 +292,9 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   // PASSWORDS VIEW (Tab 0: Passwords, Search & Categories)
   // ----------------------------------------------------
   Widget _buildPasswordsView(VaultState vaultState) {
-    // Filter only login/password items
-    final passwordItems = vaultState.filteredItems.where((i) => !i.isCard).toList();
-    final passwordGroups = vaultState.groupedItems
-        .where((g) => g.items.any((i) => !i.isCard))
-        .toList();
+    // Strictly isolate only login/password items
+    final passwordItems = vaultState.filteredPasswordItems;
+    final passwordGroups = vaultState.groupedPasswordItems;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,8 +510,8 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   // CARDS VIEW (Tab 1: Payment Cards Only, NO Category Bar)
   // ----------------------------------------------------
   Widget _buildCardsView(VaultState vaultState) {
-    // Filter card items
-    final cardItems = vaultState.filteredItems.where((i) => i.isCard).toList();
+    // Strictly isolate payment card items (ignores selectedCategory)
+    final cardItems = vaultState.filteredCardItems;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -421,4 +421,80 @@ void main() {
     // Verify Category selection is NOT rendered for cards
     expect(find.text('CATEGORY'), findsNothing);
   });
+
+  testWidgets('VaultHomeScreen strictly isolates Password and Card with identical titles and isolates category filter',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeWidgetLocalDataSource();
+    fakeLocal.items.addAll([
+      VaultItem(
+        id: 'pw-mari',
+        title: 'Maribank',
+        type: VaultType.password,
+        usernameEncrypted: 'enc_user',
+        passwordEncrypted: 'enc_pass',
+        iv: 'iv_1',
+        category: 'Personal',
+        updatedAt: DateTime.now(),
+      ),
+      VaultItem(
+        id: 'card-mari',
+        title: 'Maribank',
+        type: VaultType.card,
+        usernameEncrypted: 'enc_holder',
+        passwordEncrypted: 'enc_num',
+        iv: 'iv_2',
+        category: 'Cards',
+        accountNumber: '•••• •••• •••• 1234',
+        cardDetailsEnc: '{"cardNumber":"4123456789011234"}',
+        updatedAt: DateTime.now(),
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          authNotifierProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              const AuthState(
+                status: AuthStatus.authenticated,
+                isOfflineOnlyMode: true,
+              ),
+            ),
+          ),
+          supabaseUserProvider.overrideWith(
+            (ref) => FakeSupabaseUserNotifier(
+              const SupabaseUserState.initial(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: VaultHomeScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // On Passwords tab: verify only 1 password entry (not grouped into 2 accounts)
+    expect(find.text('VAULT PASSWORDS (1)'), findsOneWidget);
+    expect(find.text('2 ACCOUNTS'), findsNothing);
+    expect(find.text('Maribank'), findsOneWidget);
+
+    // Select category 'Work' on Passwords tab
+    final listFinder = find.byType(ListView).first;
+    await tester.tap(find.text('WORK'));
+    await tester.pumpAndSettle();
+
+    // Passwords tab shows Work is Empty
+    expect(find.text('Work is Empty'), findsOneWidget);
+
+    // Switch to Cards tab
+    await tester.tap(find.text('Cards'));
+    await tester.pumpAndSettle();
+
+    // Cards tab MUST display the Maribank Card despite category being 'Work'
+    expect(find.text('PAYMENT CARDS (1)'), findsOneWidget);
+    expect(find.text('Maribank'), findsOneWidget);
+  });
 }

@@ -3,6 +3,13 @@ import 'package:hive/hive.dart';
 
 part 'vault_item.g.dart';
 
+/// Constants for Vault item types
+abstract class VaultType {
+  static const String login = 'login';
+  static const String password = 'login';
+  static const String card = 'card';
+}
+
 /// Hive Type Model representing an encrypted Vault entry.
 ///
 /// Under Zero-Knowledge architecture:

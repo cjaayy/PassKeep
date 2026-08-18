@@ -59,10 +59,61 @@ class VaultState {
         searchQuery = '',
         errorMessage = null;
 
-  /// Returns all predefined categories merged with any unique custom categories saved in [allItems]
+  /// Returns all password/login items from [allItems] (excluding Payment Cards)
+  List<VaultItem> get allPasswordItems =>
+      allItems.where((item) => item.type != VaultType.card).toList();
+
+  /// Returns all payment card items from [allItems]
+  List<VaultItem> get allCardItems =>
+      allItems.where((item) => item.type == VaultType.card).toList();
+
+  /// Returns filtered password items based on [selectedCategory] and [searchQuery]
+  List<VaultItem> get filteredPasswordItems {
+    var result = allPasswordItems;
+
+    // Filter by Category (Only applies to Passwords)
+    if (selectedCategory.trim().isNotEmpty && selectedCategory.trim().toLowerCase() != 'all') {
+      final normCategory = selectedCategory.trim().toLowerCase();
+      result = result
+          .where((item) => item.category.trim().toLowerCase() == normCategory)
+          .toList();
+    }
+
+    // Filter by Search Query
+    if (searchQuery.trim().isNotEmpty) {
+      final normQuery = searchQuery.trim().toLowerCase();
+      result = result
+          .where((item) =>
+              item.title.toLowerCase().contains(normQuery) ||
+              item.category.toLowerCase().contains(normQuery) ||
+              (item.accountNumber?.toLowerCase().contains(normQuery) ?? false))
+          .toList();
+    }
+
+    return result;
+  }
+
+  /// Returns filtered payment card items (strictly ignores [selectedCategory], filtered ONLY by [searchQuery])
+  List<VaultItem> get filteredCardItems {
+    var result = allCardItems;
+
+    // Filter by Search Query
+    if (searchQuery.trim().isNotEmpty) {
+      final normQuery = searchQuery.trim().toLowerCase();
+      result = result
+          .where((item) =>
+              item.title.toLowerCase().contains(normQuery) ||
+              (item.accountNumber?.toLowerCase().contains(normQuery) ?? false))
+          .toList();
+    }
+
+    return result;
+  }
+
+  /// Returns predefined categories merged with any unique custom categories saved in [allPasswordItems]
   List<String> get availableCategories {
     final List<String> categories = List<String>.from(defaultPredefinedCategories);
-    for (final item in allItems) {
+    for (final item in allPasswordItems) {
       final cat = item.category.trim();
       if (cat.isNotEmpty && !categories.any((c) => c.toLowerCase() == cat.toLowerCase())) {
         categories.add(cat);
@@ -71,10 +122,10 @@ class VaultState {
     return categories;
   }
 
-  /// Returns [filteredItems] grouped by title (case-insensitive) for multi-account rendering
-  List<VaultItemGroup> get groupedItems {
+  /// Returns [filteredPasswordItems] grouped by title (case-insensitive) for multi-account rendering
+  List<VaultItemGroup> get groupedPasswordItems {
     final Map<String, List<VaultItem>> groupMap = {};
-    for (final item in filteredItems) {
+    for (final item in filteredPasswordItems) {
       final key = item.title.trim().toLowerCase();
       groupMap.putIfAbsent(key, () => []).add(item);
     }
@@ -87,6 +138,9 @@ class VaultState {
       );
     }).toList();
   }
+
+  /// Backward-compatible getter for grouped items (strictly password groups)
+  List<VaultItemGroup> get groupedItems => groupedPasswordItems;
 
   /// Creates a copy of this state with specified overrides.
   VaultState copyWith({
@@ -109,6 +163,6 @@ class VaultState {
 
   @override
   String toString() {
-    return 'VaultState(status: $status, allCount: ${allItems.length}, filteredCount: ${filteredItems.length}, groups: ${groupedItems.length}, category: $selectedCategory, query: "$searchQuery", error: $errorMessage)';
+    return 'VaultState(status: $status, allCount: ${allItems.length}, passwords: ${filteredPasswordItems.length}, cards: ${filteredCardItems.length}, groups: ${groupedPasswordItems.length}, category: $selectedCategory, query: "$searchQuery", error: $errorMessage)';
   }
 }
