@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/utils/card_brand_helper.dart';
 import '../../../../core/utils/clipboard_service.dart';
+import '../../../../core/utils/domain_utils.dart';
 import '../../../../core/utils/service_brand_helper.dart';
 import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
@@ -111,11 +112,13 @@ class VaultItemCard extends ConsumerWidget {
     final username = _getDecryptedUsername(ref);
     final displaySubtitle = item.getPrimaryIdentifier(decryptedUsername: username);
 
+    final CardBrand cardBrand;
     final IconData brandIcon;
     if (item.isCard) {
-      final brand = CardBrandHelper.detectBrand(item.accountNumber ?? item.title);
-      brandIcon = brand.icon;
+      cardBrand = CardBrandHelper.detectBrand(item.accountNumber ?? item.title);
+      brandIcon = cardBrand.icon;
     } else {
+      cardBrand = CardBrand.generic;
       brandIcon = ServiceBrandHelper.getIconForService(
         item.title,
         category: item.category,
@@ -137,7 +140,7 @@ class VaultItemCard extends ConsumerWidget {
           padding: const EdgeInsets.all(14.0),
           child: Row(
             children: [
-              // Dynamic Service Brand / Card Avatar
+              // Dynamic Bank / Service Brand Favicon Avatar
               Container(
                 width: 42,
                 height: 42,
@@ -146,10 +149,28 @@ class VaultItemCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFF334155), width: 1),
                 ),
-                child: Icon(
-                  brandIcon,
-                  color: item.isCard ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                  size: 20,
+                clipBehavior: Clip.antiAlias,
+                child: Image.network(
+                  DomainUtils.resolveFaviconUrl(item.title),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    brandIcon,
+                    color: item.isCard ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                    size: 20,
+                  ),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) {
+                      return Padding(
+                        padding: const EdgeInsets.all(6.0),
+                        child: child,
+                      );
+                    }
+                    return Icon(
+                      brandIcon,
+                      color: item.isCard ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                      size: 20,
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 14),
@@ -201,17 +222,38 @@ class VaultItemCard extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      displaySubtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
+                    const SizedBox(height: 4),
+                    if (item.isCard)
+                      Row(
+                        children: [
+                          cardBrand.buildBadge(height: 18),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              displaySubtitle,
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 13,
+                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.w400,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        displaySubtitle,
+                        style: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
               ),

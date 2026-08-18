@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/utils/card_brand_helper.dart';
 import '../../../../core/utils/clipboard_service.dart';
+import '../../../../core/utils/domain_utils.dart';
 import '../../../../core/utils/service_brand_helper.dart';
 import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
@@ -196,11 +197,35 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF334155), width: 1),
                     ),
-                    child: Icon(
-                      brandIcon,
-                      color: isCardGroup ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                      size: 20,
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: isCardGroup
+                        ? Icon(
+                            brandIcon,
+                            color: const Color(0xFF10B981),
+                            size: 20,
+                          )
+                        : Image.network(
+                            DomainUtils.resolveFaviconUrl(widget.group.title),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              brandIcon,
+                              color: const Color(0xFF94A3B8),
+                              size: 20,
+                            ),
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(6.0),
+                                  child: child,
+                                );
+                              }
+                              return Icon(
+                                brandIcon,
+                                color: const Color(0xFF94A3B8),
+                                size: 20,
+                              );
+                            },
+                          ),
                   ),
                   const SizedBox(width: 14),
 

@@ -109,8 +109,23 @@ void main() {
       expect(CardBrandHelper.detectBrand('3412 3456 7890 123'), CardBrand.amex);
       expect(CardBrandHelper.detectBrand('6011 0000 0000 0000'), CardBrand.discover);
       expect(CardBrandHelper.detectBrand('3528 0000 0000 0000'), CardBrand.jcb);
+      expect(CardBrandHelper.detectBrand('3512 0000 0000 0000'), CardBrand.jcb);
       expect(CardBrandHelper.detectBrand('6200 0000 0000 0000'), CardBrand.unionPay);
       expect(CardBrandHelper.detectBrand(''), CardBrand.generic);
+    });
+
+    test('detectCardNetwork matches detectBrand for all networks', () {
+      expect(CardBrandHelper.detectCardNetwork('4000 0000 0000 0000'), CardNetwork.visa);
+      expect(CardBrandHelper.detectCardNetwork('5200 0000 0000 0000'), CardNetwork.mastercard);
+      expect(CardBrandHelper.detectCardNetwork('3700 0000 0000 000'), CardNetwork.amex);
+      expect(CardBrandHelper.detectCardNetwork('3500 0000 0000 0000'), CardNetwork.jcb);
+    });
+
+    test('buildBadge returns valid widget for all card brands', () {
+      for (final brand in CardBrand.values) {
+        final badge = brand.buildBadge();
+        expect(badge, isNotNull);
+      }
     });
 
     test('CardDetails masks card numbers and extracts last 4 correctly', () {

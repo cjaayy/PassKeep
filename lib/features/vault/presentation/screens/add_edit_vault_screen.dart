@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/utils/card_brand_helper.dart';
+import '../../../../core/utils/domain_utils.dart';
 import '../../../../core/utils/service_brand_helper.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
@@ -683,23 +684,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
                     prefixIcon: const Icon(Icons.credit_card_rounded, color: Color(0xFF10B981)),
                     suffixIcon: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF334155)),
-                        ),
-                        child: Text(
-                          CardBrandHelper.detectBrand(_cardNumberController.text).displayName.toUpperCase(),
-                          style: const TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
+                      child: CardBrandHelper.detectBrand(_cardNumberController.text).buildBadge(height: 22),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),

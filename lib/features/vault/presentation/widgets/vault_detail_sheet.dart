@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../../core/utils/card_brand_helper.dart';
 import '../../../../core/utils/clipboard_service.dart';
+import '../../../../core/utils/domain_utils.dart';
+import '../../../../core/utils/service_brand_helper.dart';
 import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
 import '../providers/vault_providers.dart';
@@ -281,10 +284,42 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Bank Name + Brand Logo
+          // Top Row: Bank Favicon + Bank Name + Contactless Indicator
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF334155), width: 1),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Image.network(
+                  DomainUtils.resolveFaviconUrl(widget.item.title),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.account_balance_rounded,
+                    color: Color(0xFF10B981),
+                    size: 18,
+                  ),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) {
+                      return Padding(
+                        padding: const EdgeInsets.all(5.0),
+                        child: child,
+                      );
+                    }
+                    return const Icon(
+                      Icons.account_balance_rounded,
+                      color: Color(0xFF10B981),
+                      size: 18,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   widget.item.title.toUpperCase(),
@@ -298,50 +333,29 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFF334155)),
-                ),
-                child: Text(
-                  brand.displayName.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFF10B981),
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              const Icon(Icons.contactless_rounded, color: Colors.white38, size: 22),
             ],
           ),
           const SizedBox(height: 18),
 
-          // EMV Chip + Contactless Wave Icon
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 26,
+          // EMV Chip
+          Container(
+            width: 36,
+            height: 26,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Center(
+              child: Container(
+                width: 28,
+                height: 18,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 28,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black26, width: 1),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ),
+                  border: Border.all(color: Colors.black26, width: 1),
+                  borderRadius: BorderRadius.circular(3),
                 ),
               ),
-              const SizedBox(width: 10),
-              const Icon(Icons.contactless_rounded, color: Colors.white38, size: 20),
-            ],
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -381,33 +395,39 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
           ),
           const SizedBox(height: 14),
 
-          // Cardholder + Expiration Row
+          // Bottom Row: Cardholder + Expiration + Card Network Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'CARDHOLDER',
+                      style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _cardDetails.cardholderName.isNotEmpty
+                          ? _cardDetails.cardholderName.toUpperCase()
+                          : 'CARD MEMBER',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'CARDHOLDER',
-                    style: TextStyle(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.0),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _cardDetails.cardholderName.isNotEmpty
-                        ? _cardDetails.cardholderName.toUpperCase()
-                        : 'CARD MEMBER',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text(
                     'EXPIRES',
@@ -425,6 +445,9 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   ),
                 ],
               ),
+              const SizedBox(width: 14),
+              // Bottom-Right: Detected Card Network Badge
+              brand.buildBadge(height: 26),
             ],
           ),
         ],
@@ -460,10 +483,55 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Header: Title + Category + Actions
+              // Header: Avatar + Title + Category + Actions
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF334155), width: 1),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: isCard
+                        ? Icon(
+                            CardBrandHelper.detectBrand(widget.item.accountNumber ?? widget.item.title).icon,
+                            color: const Color(0xFF10B981),
+                            size: 22,
+                          )
+                        : Image.network(
+                            DomainUtils.resolveFaviconUrl(widget.item.title),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              ServiceBrandHelper.getIconForService(
+                                widget.item.title,
+                                category: widget.item.category,
+                              ),
+                              color: const Color(0xFF94A3B8),
+                              size: 22,
+                            ),
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) {
+                                return Padding(
+                                  padding: const EdgeInsets.all(7.0),
+                                  child: child,
+                                );
+                              }
+                              return Icon(
+                                ServiceBrandHelper.getIconForService(
+                                  widget.item.title,
+                                  category: widget.item.category,
+                                ),
+                                color: const Color(0xFF94A3B8),
+                                size: 22,
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,10 +539,12 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                         Text(
                           widget.item.title,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Container(
