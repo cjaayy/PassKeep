@@ -27,6 +27,20 @@ class VaultState {
   final String searchQuery;
   final String? errorMessage;
 
+  static const List<String> defaultPredefinedCategories = [
+    'All',
+    'General',
+    'Personal',
+    'Work',
+    'School',
+    'Social',
+    'Finance',
+    'Entertainment',
+    'Shopping',
+    'Developer / Tech',
+    'Utilities',
+  ];
+
   const VaultState({
     required this.status,
     required this.allItems,
@@ -44,6 +58,18 @@ class VaultState {
         selectedCategory = 'All',
         searchQuery = '',
         errorMessage = null;
+
+  /// Returns all predefined categories merged with any unique custom categories saved in [allItems]
+  List<String> get availableCategories {
+    final List<String> categories = List<String>.from(defaultPredefinedCategories);
+    for (final item in allItems) {
+      final cat = item.category.trim();
+      if (cat.isNotEmpty && !categories.any((c) => c.toLowerCase() == cat.toLowerCase())) {
+        categories.add(cat);
+      }
+    }
+    return categories;
+  }
 
   /// Returns [filteredItems] grouped by title (case-insensitive) for multi-account rendering
   List<VaultItemGroup> get groupedItems {

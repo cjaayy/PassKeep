@@ -23,7 +23,6 @@ class VaultHomeScreen extends ConsumerStatefulWidget {
 class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _categories = ['All', 'Work', 'School', 'Personal', 'Finance', 'Social'];
   late AnimationController _syncAnimationController;
 
   @override
@@ -218,9 +217,9 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _categories.length,
+              itemCount: vaultState.availableCategories.length,
               itemBuilder: (context, index) {
-                final category = _categories[index];
+                final category = vaultState.availableCategories[index];
                 final isSelected =
                     vaultState.selectedCategory.toLowerCase() == category.toLowerCase();
 
@@ -294,6 +293,23 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
 
     if (state.filteredItems.isEmpty) {
+      final isFilteredByCategory = state.selectedCategory.toLowerCase() != 'all';
+      final isSearching = state.searchQuery.trim().isNotEmpty;
+
+      String emptyTitle;
+      String emptySubtitle;
+
+      if (isSearching) {
+        emptyTitle = 'No Matching Passwords';
+        emptySubtitle = 'No accounts match your search query.';
+      } else if (isFilteredByCategory) {
+        emptyTitle = '${state.selectedCategory} is Empty';
+        emptySubtitle = 'No passwords saved in this category yet.';
+      } else {
+        emptyTitle = 'No Vault Items Found';
+        emptySubtitle = 'Your encrypted vault is empty. Tap below to add your first password.';
+      }
+
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -301,14 +317,14 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.shield_outlined,
+                isFilteredByCategory ? Icons.folder_open_rounded : Icons.shield_outlined,
                 size: 64,
                 color: const Color(0xFF334155).withValues(alpha: 0.8),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'No Vault Items Found',
-                style: TextStyle(
+              Text(
+                emptyTitle,
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -316,9 +332,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               ),
               const SizedBox(height: 6),
               Text(
-                state.searchQuery.isNotEmpty
-                    ? 'No passwords match your search query.'
-                    : 'Your encrypted vault is empty. Tap below to add your first password.',
+                emptySubtitle,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white38, fontSize: 13),
               ),

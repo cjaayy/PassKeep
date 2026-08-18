@@ -287,4 +287,69 @@ void main() {
     expect(find.text('09171234567'), findsOneWidget);
     expect(find.text('No identifier'), findsNothing);
   });
+
+  testWidgets('VaultHomeScreen renders all predefined and custom categories in filter bar, and shows empty state',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeWidgetLocalDataSource();
+    fakeLocal.items.add(
+      VaultItem(
+        id: 'crypto-1',
+        title: 'Binance',
+        usernameEncrypted: 'enc_user',
+        passwordEncrypted: 'enc_pass',
+        iv: 'iv_val',
+        category: 'Crypto', // Custom category
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          authNotifierProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              const AuthState(
+                status: AuthStatus.authenticated,
+                isOfflineOnlyMode: true,
+              ),
+            ),
+          ),
+          supabaseUserProvider.overrideWith(
+            (ref) => FakeSupabaseUserNotifier(
+              const SupabaseUserState.initial(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: VaultHomeScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify predefined chips are present
+    expect(find.text('ALL'), findsOneWidget);
+    expect(find.text('GENERAL'), findsOneWidget);
+    expect(find.text('PERSONAL'), findsOneWidget);
+    expect(find.text('WORK'), findsOneWidget);
+
+    // Verify custom category chip 'CRYPTO' is present
+    // Need to scroll horizontal list to find CRYPTO if needed
+    final listFinder = find.byType(ListView).first;
+    await tester.drag(listFinder, const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('CRYPTO'), findsOneWidget);
+
+    // Tap 'SCHOOL' chip (which has 0 items)
+    await tester.drag(listFinder, const Offset(300, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('SCHOOL'));
+    await tester.pumpAndSettle();
+
+    // Verify empty category state
+    expect(find.text('School is Empty'), findsOneWidget);
+    expect(find.text('No passwords saved in this category yet.'), findsOneWidget);
+  });
 }
