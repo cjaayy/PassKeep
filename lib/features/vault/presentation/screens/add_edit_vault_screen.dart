@@ -114,8 +114,13 @@ String toTitleCase(String input) {
 /// Screen for creating a new vault entry or editing an existing one
 class AddEditVaultScreen extends ConsumerStatefulWidget {
   final VaultItem? existingItem;
+  final String? initialItemType;
 
-  const AddEditVaultScreen({super.key, this.existingItem});
+  const AddEditVaultScreen({
+    super.key,
+    this.existingItem,
+    this.initialItemType,
+  });
 
   @override
   ConsumerState<AddEditVaultScreen> createState() => _AddEditVaultScreenState();
@@ -183,7 +188,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   void initState() {
     super.initState();
 
-    final isExistingCard = widget.existingItem?.isCard ?? false;
+    final isExistingCard =
+        (widget.existingItem?.isCard ?? false) || widget.initialItemType == 'card';
     _selectedItemType = isExistingCard ? 'card' : 'login';
 
     // Initialize Service selection

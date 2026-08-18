@@ -75,7 +75,7 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 }
 
 void main() {
-  testWidgets('VaultHomeScreen displays items and hides Cloud Sync button when offline/unauthenticated',
+  testWidgets('VaultHomeScreen displays items and Bottom Navigation Bar',
       (WidgetTester tester) async {
     final fakeLocal = FakeWidgetLocalDataSource();
     fakeLocal.items.add(
@@ -132,8 +132,11 @@ void main() {
     // Verify Loaded Item Card
     expect(find.text('GitHub Enterprise'), findsOneWidget);
 
-    // Verify FAB
-    expect(find.text('ADD PASSWORD'), findsOneWidget);
+    // Verify Bottom Navigation Bar Destinations
+    expect(find.text('Passwords'), findsOneWidget);
+    expect(find.text('Add'), findsOneWidget);
+    expect(find.text('Cards'), findsOneWidget);
+    expect(find.text('Settings'), findsOneWidget);
   });
 
   testWidgets('VaultHomeScreen shows Cloud Sync button when cloud user is authenticated and not offline',
@@ -339,7 +342,6 @@ void main() {
     expect(find.text('WORK'), findsOneWidget);
 
     // Verify custom category chip 'CRYPTO' is present
-    // Need to scroll horizontal list to find CRYPTO if needed
     final listFinder = find.byType(ListView).first;
     await tester.drag(listFinder, const Offset(-300, 0));
     await tester.pumpAndSettle();
@@ -354,5 +356,67 @@ void main() {
     // Verify empty category state
     expect(find.text('School is Empty'), findsOneWidget);
     expect(find.text('No passwords saved in this category yet.'), findsOneWidget);
+  });
+
+  testWidgets('VaultHomeScreen switches to Cards tab and opens Add chooser sheet',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeWidgetLocalDataSource();
+    fakeLocal.items.add(
+      VaultItem(
+        id: 'card-1',
+        title: 'BDO Visa Gold',
+        type: 'card',
+        usernameEncrypted: 'Juan Dela Cruz',
+        passwordEncrypted: '4123456789012345',
+        iv: 'iv_val',
+        category: 'Finance',
+        accountNumber: '4123456789012345',
+        cardDetailsEnc: '{"cardholderName":"Juan Dela Cruz","cardNumber":"4123 4567 8901 2345","expiryDate":"12/28","cvv":"123"}',
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          authNotifierProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              const AuthState(
+                status: AuthStatus.authenticated,
+                isOfflineOnlyMode: true,
+              ),
+            ),
+          ),
+          supabaseUserProvider.overrideWith(
+            (ref) => FakeSupabaseUserNotifier(
+              const SupabaseUserState.initial(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: VaultHomeScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Switch to Cards tab
+    await tester.tap(find.text('Cards'));
+    await tester.pumpAndSettle();
+
+    // Verify Cards screen title and card item
+    expect(find.text('Payment Cards'), findsOneWidget);
+    expect(find.text('BDO Visa Gold'), findsOneWidget);
+
+    // Tap Add button in Bottom Navigation Bar
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+
+    // Verify Add Chooser Modal Sheet opens
+    expect(find.text('Add to PassKeep'), findsOneWidget);
+    expect(find.text('Password / Login'), findsOneWidget);
+    expect(find.text('Payment Card'), findsOneWidget);
   });
 }
