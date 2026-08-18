@@ -49,6 +49,14 @@ class FakeSyncRemoteDataSource implements IVaultRemoteDataSource {
   }
 
   @override
+  Future<void> upsertRemoteItems(List<VaultItem> items) async {
+    if (shouldThrow) throw const SyncFailure('Remote bulk write error');
+    for (final item in items) {
+      remoteItems[item.id] = item;
+    }
+  }
+
+  @override
   Future<void> deleteRemoteItem(String id) async {
     if (shouldThrow) throw const SyncFailure('Remote delete error');
     remoteItems.remove(id);
@@ -96,6 +104,71 @@ void main() {
       // Verify local item has been marked as synced
       final localStored = await localDataSource.getVaultItemById('item-1');
       expect(localStored!.isSynced, isTrue);
+    });
+
+    test('should push local items when remote database was wiped even if local items were isSynced = true', () async {
+      final localSynced = VaultItem(
+        id: 'item-1',
+        title: 'GCash',
+        usernameEncrypted: 'enc_user_1',
+        passwordEncrypted: 'enc_pass_1',
+        iv: 'iv_1',
+        category: 'Finance',
+        accountNumber: '09171234567',
+        isSynced: true, // was synced before remote DB wipe
+        updatedAt: DateTime.parse('2026-08-17T10:00:00Z'),
+      );
+
+      await localDataSource.saveVaultItem(localSynced);
+
+      // Remote is empty (wiped)
+      expect(remoteDataSource.remoteItems.isEmpty, isTrue);
+
+      final result = await syncService.sync();
+
+      expect(result.isSuccess, isTrue);
+      expect(result.pushedCount, 1);
+
+      // Verify remote now has the item
+      expect(remoteDataSource.remoteItems.containsKey('item-1'), isTrue);
+      expect(remoteDataSource.remoteItems['item-1']!.title, 'GCash');
+    });
+
+    test('forceUploadLocalVault bulk-upserts all local items to remote', () async {
+      final item1 = VaultItem(
+        id: 'item-1',
+        title: 'GCash',
+        usernameEncrypted: 'enc_user_1',
+        passwordEncrypted: 'enc_pass_1',
+        iv: 'iv_1',
+        category: 'Finance',
+        isSynced: true,
+        updatedAt: DateTime.parse('2026-08-17T10:00:00Z'),
+      );
+      final item2 = VaultItem(
+        id: 'item-2',
+        title: 'GitHub',
+        usernameEncrypted: 'enc_user_2',
+        passwordEncrypted: 'enc_pass_2',
+        iv: 'iv_2',
+        category: 'Work',
+        isSynced: true,
+        updatedAt: DateTime.parse('2026-08-17T11:00:00Z'),
+      );
+
+      await localDataSource.saveVaultItem(item1);
+      await localDataSource.saveVaultItem(item2);
+
+      final result = await syncService.forceUploadLocalVault();
+
+      expect(result.isSuccess, isTrue);
+      expect(result.pushedCount, 2);
+      expect(remoteDataSource.remoteItems.length, 2);
+
+      final stored1 = await localDataSource.getVaultItemById('item-1');
+      final stored2 = await localDataSource.getVaultItemById('item-2');
+      expect(stored1!.isSynced, isTrue);
+      expect(stored2!.isSynced, isTrue);
     });
 
     test('should pull new remote items into local storage', () async {

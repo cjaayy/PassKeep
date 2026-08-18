@@ -72,12 +72,11 @@ class VaultSyncService {
       // 2. Process Local items (Push or resolve against existing remote)
       for (final localItem in localItems) {
         if (!remoteMap.containsKey(localItem.id)) {
-          // Item exists locally only
-          if (!localItem.isSynced) {
-            await _remoteDataSource.upsertRemoteItem(localItem);
-            await _localDataSource.saveVaultItem(localItem.copyWith(isSynced: true));
-            pushedCount++;
-          }
+          // Item exists locally only (newly added or remote database was wiped/cleared)
+          // Always push to remote so cloud has the record and mark as synced locally
+          await _remoteDataSource.upsertRemoteItem(localItem);
+          await _localDataSource.saveVaultItem(localItem.copyWith(isSynced: true));
+          pushedCount++;
         } else {
           // Item exists in both local and remote: Perform timestamp conflict resolution
           final remoteItem = remoteMap[localItem.id]!;
@@ -123,6 +122,51 @@ class VaultSyncService {
         return SyncResult.failure(e.message);
       }
       return SyncResult.failure('Sync failed: ${e.toString()}');
+    }
+  }
+
+  /// Force pushes all local vault items to the Supabase cloud database.
+  ///
+  /// Marks all local items as unsynced in Hive, performs a bulk upsert to Supabase,
+  /// and marks all items as synced upon completion.
+  Future<SyncResult> forceUploadLocalVault() async {
+    try {
+      final localItems = await _localDataSource.getAllVaultItems();
+      if (localItems.isEmpty) {
+        return SyncResult(
+          pushedCount: 0,
+          pulledCount: 0,
+          conflictResolvedCount: 0,
+          syncedAt: DateTime.now(),
+          isSuccess: true,
+        );
+      }
+
+      // 1. Mark all local records as unsynced
+      for (final item in localItems) {
+        await _localDataSource.saveVaultItem(item.copyWith(isSynced: false));
+      }
+
+      // 2. Perform bulk upsert to remote database
+      await _remoteDataSource.upsertRemoteItems(localItems);
+
+      // 3. Mark all records as synced in local Hive storage
+      for (final item in localItems) {
+        await _localDataSource.saveVaultItem(item.copyWith(isSynced: true));
+      }
+
+      return SyncResult(
+        pushedCount: localItems.length,
+        pulledCount: 0,
+        conflictResolvedCount: 0,
+        syncedAt: DateTime.now(),
+        isSuccess: true,
+      );
+    } catch (e) {
+      if (e is Failure) {
+        return SyncResult.failure(e.message);
+      }
+      return SyncResult.failure('Force upload failed: ${e.toString()}');
     }
   }
 

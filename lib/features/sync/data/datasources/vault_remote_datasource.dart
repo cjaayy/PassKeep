@@ -10,6 +10,9 @@ abstract class IVaultRemoteDataSource {
   /// Upserts (inserts or updates) a vault item in the remote database.
   Future<void> upsertRemoteItem(VaultItem item);
 
+  /// Bulk upserts multiple vault items in the remote database.
+  Future<void> upsertRemoteItems(List<VaultItem> items);
+
   /// Soft deletes a remote vault item by setting `is_deleted = true`.
   Future<void> deleteRemoteItem(String id);
 }
@@ -54,6 +57,20 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
     } catch (e) {
       if (e is Failure) rethrow;
       throw SyncFailure('Failed to upsert remote vault item (${item.id}): ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> upsertRemoteItems(List<VaultItem> items) async {
+    if (items.isEmpty) return;
+    try {
+      final payload = items.map((item) => item.toSupabaseMap()).toList();
+      await _supabase
+          .from(_tableName)
+          .upsert(payload);
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw SyncFailure('Failed to bulk upsert remote vault items: ${e.toString()}');
     }
   }
 

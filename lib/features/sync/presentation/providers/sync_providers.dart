@@ -140,6 +140,33 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
     return result;
   }
+
+  /// Force pushes all local vault items to Supabase cloud database.
+  Future<SyncResult> forceUploadLocalVault() async {
+    state = state.copyWith(isSyncing: true, errorMessage: null);
+
+    final result = await _syncService.forceUploadLocalVault();
+
+    if (result.isSuccess) {
+      state = state.copyWith(
+        isSyncing: false,
+        lastSyncedAt: result.syncedAt,
+        lastSyncedCount: result.totalChanges,
+        isSuccess: true,
+        errorMessage: null,
+      );
+
+      _ref?.read(vaultNotifierProvider.notifier).loadVaultItems();
+    } else {
+      state = state.copyWith(
+        isSyncing: false,
+        isSuccess: false,
+        errorMessage: result.errorMessage,
+      );
+    }
+
+    return result;
+  }
 }
 
 /// Provider for [SyncNotifier]

@@ -104,6 +104,57 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _handleForcePush() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Force Push to Cloud?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This will upload all local encrypted vault items and overwrite the cloud database.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Force Push'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final result = await ref.read(syncNotifierProvider.notifier).forceUploadLocalVault();
+      if (mounted) {
+        if (result.isSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Force push complete. ${result.pushedCount} items uploaded to cloud.'),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.errorMessage ?? 'Force push failed.'),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Future<void> _confirmSignOut() async {
     final shouldSignOut = await showDialog<bool>(
       context: context,
@@ -222,6 +273,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         : const Icon(Icons.sync_rounded, size: 16),
                     label: const Text('Sync', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     onPressed: syncState.isSyncing ? null : _handleSync,
+                  ),
+                ),
+                const Divider(color: Color(0xFF334155), height: 1),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.cloud_upload_rounded, color: Color(0xFF10B981)),
+                  ),
+                  title: const Text(
+                    'Force Push to Cloud',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Upload & overwrite all local items to cloud database',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  trailing: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: const Color(0xFF10B981),
+                      elevation: 0,
+                      side: const BorderSide(color: Color(0xFF10B981), width: 1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    icon: const Icon(Icons.upload_rounded, size: 16),
+                    label: const Text('Push', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: syncState.isSyncing ? null : _handleForcePush,
                   ),
                 ),
               ],

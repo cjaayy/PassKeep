@@ -41,6 +41,13 @@ class FakeMigrationRemoteDataSource implements IVaultRemoteDataSource {
   }
 
   @override
+  Future<void> upsertRemoteItems(List<VaultItem> items) async {
+    for (final item in items) {
+      remoteItems[item.id] = item;
+    }
+  }
+
+  @override
   Future<void> deleteRemoteItem(String id) async {
     remoteItems.remove(id);
   }
