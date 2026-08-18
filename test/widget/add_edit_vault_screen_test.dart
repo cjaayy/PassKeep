@@ -87,7 +87,9 @@ void main() {
     await tester.enterText(customServiceFinder, 'work vpn portal');
     await tester.pumpAndSettle();
 
-    // Select 'Work' Category
+    // Ensure Category dropdown is visible and select 'Work'
+    await tester.ensureVisible(find.text('General'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('General'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Work').last);
@@ -265,5 +267,89 @@ void main() {
       find.text('Enter either Username/Email or Account/Phone Number'),
       findsWidgets,
     );
+  });
+
+  testWidgets('AddEditVaultScreen creates and saves Payment Card entry successfully',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeLocalDataSource();
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: const MaterialApp(
+          home: AddEditVaultScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Select PAYMENT CARD toggle
+    await tester.tap(find.text('PAYMENT CARD'));
+    await tester.pumpAndSettle();
+
+    // Enter Card Title
+    final cardTitleFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'e.g. BPI Gold Visa, GCash Card, Maya Card',
+    );
+    await tester.enterText(cardTitleFinder, 'BPI Gold Visa');
+    await tester.pumpAndSettle();
+
+    // Enter Cardholder Name
+    final cardholderFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'e.g. JUAN DELA CRUZ',
+    );
+    await tester.enterText(cardholderFinder, 'JUAN DELA CRUZ');
+    await tester.pumpAndSettle();
+
+    // Enter Card Number
+    final cardNumberFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'XXXX XXXX XXXX XXXX',
+    );
+    await tester.enterText(cardNumberFinder, '4123456789012345');
+    await tester.pumpAndSettle();
+
+    // Enter Expiry
+    final expiryFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'MM/YY',
+    );
+    await tester.enterText(expiryFinder, '1228');
+    await tester.pumpAndSettle();
+
+    // Enter CVV
+    final cvvFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == '123',
+    );
+    await tester.enterText(cvvFinder, '456');
+    await tester.pumpAndSettle();
+
+    // Save Card
+    await tester.tap(find.byTooltip('Save Item'));
+    await tester.pumpAndSettle();
+
+    // Verify saved item
+    expect(fakeLocal.items.length, 1);
+    final savedCard = fakeLocal.items.first;
+    expect(savedCard.isCard, isTrue);
+    expect(savedCard.type, 'card');
+    expect(savedCard.title, 'Bpi Gold Visa');
+    expect(savedCard.category, 'Finance');
+    expect(savedCard.accountNumber, '•••• •••• •••• 2345');
+    expect(savedCard.cardDetailsEnc, isNotNull);
   });
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../../core/utils/card_brand_helper.dart';
 import '../../../../core/utils/clipboard_service.dart';
 import '../../../../core/utils/service_brand_helper.dart';
+import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
 
 /// Card widget representing a single encrypted VaultItem in the list
@@ -29,37 +31,74 @@ class VaultItemCard extends ConsumerWidget {
     }
   }
 
-  Future<void> _quickCopyPassword(BuildContext context, WidgetRef ref) async {
+  Future<void> _quickCopyCredential(BuildContext context, WidgetRef ref) async {
     try {
       final encryptionService = ref.read(encryptionServiceProvider);
-      final plainPassword = encryptionService.decrypt(
-        cipherTextBase64: item.passwordEncrypted,
-        ivBase64: item.iv,
-      );
 
-      await ClipboardService.copyWithAutoClear(plainPassword);
+      if (item.isCard) {
+        String cardNumber = '';
+        if (item.cardDetailsEnc != null && item.cardDetailsEnc!.isNotEmpty) {
+          final decryptedCardJson = encryptionService.decrypt(
+            cipherTextBase64: item.cardDetailsEnc!,
+            ivBase64: item.iv,
+          );
+          final card = CardDetails.fromJson(decryptedCardJson);
+          cardNumber = card.cardNumber;
+        } else {
+          cardNumber = encryptionService.decrypt(
+            cipherTextBase64: item.passwordEncrypted,
+            ivBase64: item.iv,
+          );
+        }
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
-                const SizedBox(width: 8),
-                Text('Copied password for "${item.title}". Auto-clears in 30s.'),
-              ],
+        await ClipboardService.copyWithAutoClear(cardNumber.replaceAll(RegExp(r'\s+'), ''));
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  Text('Copied card number for "${item.title}". Auto-clears in 30s.'),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: const Color(0xFF1E293B),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
+          );
+        }
+      } else {
+        final plainPassword = encryptionService.decrypt(
+          cipherTextBase64: item.passwordEncrypted,
+          ivBase64: item.iv,
         );
+
+        await ClipboardService.copyWithAutoClear(plainPassword);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  Text('Copied password for "${item.title}". Auto-clears in 30s.'),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to decrypt password: ${e.toString()}'),
+            content: Text('Failed to copy: ${e.toString()}'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -72,10 +111,16 @@ class VaultItemCard extends ConsumerWidget {
     final username = _getDecryptedUsername(ref);
     final displaySubtitle = item.getPrimaryIdentifier(decryptedUsername: username);
 
-    final brandIcon = ServiceBrandHelper.getIconForService(
-      item.title,
-      category: item.category,
-    );
+    final IconData brandIcon;
+    if (item.isCard) {
+      final brand = CardBrandHelper.detectBrand(item.accountNumber ?? item.title);
+      brandIcon = brand.icon;
+    } else {
+      brandIcon = ServiceBrandHelper.getIconForService(
+        item.title,
+        category: item.category,
+      );
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -92,7 +137,7 @@ class VaultItemCard extends ConsumerWidget {
           padding: const EdgeInsets.all(14.0),
           child: Row(
             children: [
-              // Dynamic Service Brand Avatar
+              // Dynamic Service Brand / Card Avatar
               Container(
                 width: 42,
                 height: 42,
@@ -103,13 +148,13 @@ class VaultItemCard extends ConsumerWidget {
                 ),
                 child: Icon(
                   brandIcon,
-                  color: const Color(0xFF94A3B8),
+                  color: item.isCard ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
                   size: 20,
                 ),
               ),
               const SizedBox(width: 14),
 
-              // Title and Account Username/Email Subtext
+              // Title and Identifier Subtext
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,18 +174,25 @@ class VaultItemCard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Monochromatic Neutral Category Badge
+                        // Category / Card Badge
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF334155),
+                            color: item.isCard
+                                ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                : const Color(0xFF334155),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF475569), width: 0.8),
+                            border: Border.all(
+                              color: item.isCard
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                                  : const Color(0xFF475569),
+                              width: 0.8,
+                            ),
                           ),
                           child: Text(
-                            item.category.toUpperCase(),
-                            style: const TextStyle(
-                              color: Color(0xFFE2E8F0),
+                            item.isCard ? 'CARD' : item.category.toUpperCase(),
+                            style: TextStyle(
+                              color: item.isCard ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.8,
@@ -167,8 +219,8 @@ class VaultItemCard extends ConsumerWidget {
               // Quick Copy Button
               IconButton(
                 icon: const Icon(Icons.copy_rounded, color: Color(0xFF64748B), size: 18),
-                tooltip: 'Copy Password',
-                onPressed: () => _quickCopyPassword(context, ref),
+                tooltip: item.isCard ? 'Copy Card Number' : 'Copy Password',
+                onPressed: () => _quickCopyCredential(context, ref),
               ),
             ],
           ),

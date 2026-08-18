@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../../core/utils/card_brand_helper.dart';
 import '../../../../core/utils/clipboard_service.dart';
 import '../../../../core/utils/service_brand_helper.dart';
+import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
 import '../providers/vault_state.dart';
 
@@ -74,37 +76,74 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
     }
   }
 
-  Future<void> _quickCopyPassword(VaultItem item) async {
+  Future<void> _quickCopyCredential(VaultItem item) async {
     try {
       final encryptionService = ref.read(encryptionServiceProvider);
-      final plainPassword = encryptionService.decrypt(
-        cipherTextBase64: item.passwordEncrypted,
-        ivBase64: item.iv,
-      );
 
-      await ClipboardService.copyWithAutoClear(plainPassword);
+      if (item.isCard) {
+        String cardNumber = '';
+        if (item.cardDetailsEnc != null && item.cardDetailsEnc!.isNotEmpty) {
+          final decryptedCardJson = encryptionService.decrypt(
+            cipherTextBase64: item.cardDetailsEnc!,
+            ivBase64: item.iv,
+          );
+          final card = CardDetails.fromJson(decryptedCardJson);
+          cardNumber = card.cardNumber;
+        } else {
+          cardNumber = encryptionService.decrypt(
+            cipherTextBase64: item.passwordEncrypted,
+            ivBase64: item.iv,
+          );
+        }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
-                const SizedBox(width: 8),
-                Text('Copied password for "${item.title}". Auto-clears in 30s.'),
-              ],
+        await ClipboardService.copyWithAutoClear(cardNumber.replaceAll(RegExp(r'\s+'), ''));
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  Text('Copied card number for "${item.title}". Auto-clears in 30s.'),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: const Color(0xFF1E293B),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ),
+          );
+        }
+      } else {
+        final plainPassword = encryptionService.decrypt(
+          cipherTextBase64: item.passwordEncrypted,
+          ivBase64: item.iv,
         );
+
+        await ClipboardService.copyWithAutoClear(plainPassword);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
+                  const SizedBox(width: 8),
+                  Text('Copied password for "${item.title}". Auto-clears in 30s.'),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E293B),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to decrypt password: ${e.toString()}'),
+            content: Text('Failed to copy credential: ${e.toString()}'),
             backgroundColor: const Color(0xFFEF4444),
           ),
         );
@@ -114,10 +153,18 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
 
   @override
   Widget build(BuildContext context) {
-    final brandIcon = ServiceBrandHelper.getIconForService(
-      widget.group.title,
-      category: widget.group.primaryCategory,
-    );
+    final isCardGroup = widget.group.items.any((i) => i.isCard);
+
+    final IconData brandIcon;
+    if (isCardGroup) {
+      final brand = CardBrandHelper.detectBrand(widget.group.title);
+      brandIcon = brand.icon;
+    } else {
+      brandIcon = ServiceBrandHelper.getIconForService(
+        widget.group.title,
+        category: widget.group.primaryCategory,
+      );
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -151,13 +198,13 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                     ),
                     child: Icon(
                       brandIcon,
-                      color: const Color(0xFF94A3B8),
+                      color: isCardGroup ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 14),
 
-                  // Title and Multi-Account Counter
+                  // Service Title + Account Count Badge
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,14 +228,21 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF334155),
+                                color: isCardGroup
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                    : const Color(0xFF334155),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFF475569), width: 0.8),
+                                border: Border.all(
+                                  color: isCardGroup
+                                      ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                                      : const Color(0xFF475569),
+                                  width: 0.8,
+                                ),
                               ),
                               child: Text(
-                                widget.group.primaryCategory.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Color(0xFFE2E8F0),
+                                isCardGroup ? 'CARDS' : widget.group.primaryCategory.toUpperCase(),
+                                style: TextStyle(
+                                  color: isCardGroup ? const Color(0xFF10B981) : const Color(0xFFE2E8F0),
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.8,
@@ -207,7 +261,7 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                '${widget.group.count} ACCOUNTS',
+                                '${widget.group.count} ${isCardGroup ? 'CARDS' : 'ACCOUNTS'}',
                                 style: const TextStyle(
                                   color: Color(0xFF10B981),
                                   fontSize: 11,
@@ -271,9 +325,9 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                         child: Row(
                           children: [
                             const SizedBox(width: 6),
-                            const Icon(
-                              Icons.account_circle_outlined,
-                              color: Color(0xFF64748B),
+                            Icon(
+                              subItem.isCard ? Icons.credit_card_rounded : Icons.account_circle_outlined,
+                              color: const Color(0xFF64748B),
                               size: 20,
                             ),
                             const SizedBox(width: 14),
@@ -291,8 +345,8 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                             ),
                             IconButton(
                               icon: const Icon(Icons.copy_rounded, color: Color(0xFF64748B), size: 18),
-                              tooltip: 'Copy Password',
-                              onPressed: () => _quickCopyPassword(subItem),
+                              tooltip: subItem.isCard ? 'Copy Card Number' : 'Copy Password',
+                              onPressed: () => _quickCopyCredential(subItem),
                             ),
                           ],
                         ),

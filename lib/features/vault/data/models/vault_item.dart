@@ -6,8 +6,8 @@ part 'vault_item.g.dart';
 /// Hive Type Model representing an encrypted Vault entry.
 ///
 /// Under Zero-Knowledge architecture:
-/// - [title], [category] & [accountNumber] can remain readable for fast local indexing/searching.
-/// - [usernameEncrypted], [passwordEncrypted], and [notes] are encrypted with AES-GCM/CBC.
+/// - [title], [category], [accountNumber] & [type] remain readable for fast local indexing/searching.
+/// - [usernameEncrypted], [passwordEncrypted], [notes] & [cardDetailsEnc] are encrypted with AES-CBC.
 /// - [iv] holds the base64-encoded Initialization Vector specific to this item's encryption session.
 @HiveType(typeId: 0)
 class VaultItem extends HiveObject {
@@ -41,6 +41,12 @@ class VaultItem extends HiveObject {
   @HiveField(9)
   final String? accountNumber;
 
+  @HiveField(10)
+  final String type; // 'login' | 'card'
+
+  @HiveField(11)
+  final String? cardDetailsEnc;
+
   VaultItem({
     required this.id,
     required this.title,
@@ -52,7 +58,12 @@ class VaultItem extends HiveObject {
     this.isSynced = false,
     required this.updatedAt,
     this.accountNumber,
+    this.type = 'login',
+    this.cardDetailsEnc,
   });
+
+  bool get isCard => type == 'card';
+  bool get isLogin => type == 'login';
 
   /// Creates a copy of this [VaultItem] with updated properties.
   VaultItem copyWith({
@@ -67,6 +78,9 @@ class VaultItem extends HiveObject {
     DateTime? updatedAt,
     String? accountNumber,
     bool clearAccountNumber = false,
+    String? type,
+    String? cardDetailsEnc,
+    bool clearCardDetails = false,
   }) {
     return VaultItem(
       id: id ?? this.id,
@@ -79,13 +93,15 @@ class VaultItem extends HiveObject {
       isSynced: isSynced ?? this.isSynced,
       updatedAt: updatedAt ?? this.updatedAt,
       accountNumber: clearAccountNumber ? null : (accountNumber ?? this.accountNumber),
+      type: type ?? this.type,
+      cardDetailsEnc: clearCardDetails ? null : (cardDetailsEnc ?? this.cardDetailsEnc),
     );
   }
 
   /// Returns the primary display identifier for this vault item:
   /// 1. The decrypted username (if provided and non-empty)
-  /// 2. The account / phone number (if present and non-empty)
-  /// 3. A masked placeholder if an encrypted username is stored
+  /// 2. The account / phone / card number (if present and non-empty)
+  /// 3. A masked placeholder if an encrypted username or card is stored
   /// 4. Fallback to 'No identifier'
   String getPrimaryIdentifier({String? decryptedUsername}) {
     final user = decryptedUsername?.trim() ?? '';
@@ -96,8 +112,8 @@ class VaultItem extends HiveObject {
     if (acc.isNotEmpty) {
       return acc;
     }
-    if (usernameEncrypted.isNotEmpty) {
-      return '••••••••';
+    if (usernameEncrypted.isNotEmpty || (cardDetailsEnc != null && cardDetailsEnc!.isNotEmpty)) {
+      return isCard ? '•••• ••••' : '••••••••';
     }
     return 'No identifier';
   }
@@ -115,6 +131,8 @@ class VaultItem extends HiveObject {
       'is_synced': isSynced,
       'updated_at': updatedAt.toIso8601String(),
       'account_number': accountNumber,
+      'type': type,
+      'card_details_enc': cardDetailsEnc,
     };
   }
 
@@ -131,6 +149,8 @@ class VaultItem extends HiveObject {
       'is_deleted': false,
       'updated_at': updatedAt.toUtc().toIso8601String(),
       'account_number': accountNumber,
+      'type': type,
+      'card_details_enc': cardDetailsEnc,
     };
   }
 
@@ -141,16 +161,20 @@ class VaultItem extends HiveObject {
       title: map['title'] as String,
       usernameEncrypted: (map['username_enc'] ??
           map['username_encrypted'] ??
-          map['usernameEncrypted']) as String,
+          map['usernameEncrypted'] ??
+          '') as String,
       passwordEncrypted: (map['password_enc'] ??
           map['password_encrypted'] ??
-          map['passwordEncrypted']) as String,
+          map['passwordEncrypted'] ??
+          '') as String,
       iv: map['iv'] as String,
       category: (map['category'] as String?) ?? 'General',
       notes: map['notes'] as String?,
       isSynced: (map['is_synced'] ?? map['isSynced'] ?? false) as bool,
       updatedAt: DateTime.parse((map['updated_at'] ?? map['updatedAt']) as String),
       accountNumber: (map['account_number'] ?? map['accountNumber']) as String?,
+      type: (map['type'] as String?) ?? 'login',
+      cardDetailsEnc: (map['card_details_enc'] ?? map['cardDetailsEnc']) as String?,
     );
   }
 
@@ -163,7 +187,7 @@ class VaultItem extends HiveObject {
 
   @override
   String toString() {
-    return 'VaultItem(id: $id, title: $title, category: $category, account: $accountNumber, isSynced: $isSynced, updatedAt: $updatedAt)';
+    return 'VaultItem(id: $id, title: $title, type: $type, category: $category, account: $accountNumber, isSynced: $isSynced, updatedAt: $updatedAt)';
   }
 
   @override
@@ -180,7 +204,9 @@ class VaultItem extends HiveObject {
         other.notes == notes &&
         other.isSynced == isSynced &&
         other.updatedAt == updatedAt &&
-        other.accountNumber == accountNumber;
+        other.accountNumber == accountNumber &&
+        other.type == type &&
+        other.cardDetailsEnc == cardDetailsEnc;
   }
 
   @override
@@ -194,6 +220,8 @@ class VaultItem extends HiveObject {
         notes.hashCode ^
         isSynced.hashCode ^
         updatedAt.hashCode ^
-        accountNumber.hashCode;
+        accountNumber.hashCode ^
+        type.hashCode ^
+        cardDetailsEnc.hashCode;
   }
 }

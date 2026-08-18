@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:passkeep/core/utils/card_brand_helper.dart';
+import 'package:passkeep/features/vault/data/models/card_details.dart';
 import 'package:passkeep/features/vault/data/models/vault_item.dart';
 
 void main() {
@@ -27,6 +29,8 @@ void main() {
       expect(testItem.notes, 'Contains 2FA backup codes');
       expect(testItem.isSynced, false);
       expect(testItem.updatedAt, testDate);
+      expect(testItem.isLogin, true);
+      expect(testItem.isCard, false);
     });
 
     test('should return a modified copy when copyWith is called', () {
@@ -52,6 +56,7 @@ void main() {
       expect(map['notes'], 'Contains 2FA backup codes');
       expect(map['is_synced'], false);
       expect(map['updated_at'], testDate.toIso8601String());
+      expect(map['type'], 'login');
 
       final fromMapItem = VaultItem.fromMap(map);
       expect(fromMapItem, equals(testItem));
@@ -65,9 +70,67 @@ void main() {
       expect(fromJsonItem.hashCode, equals(testItem.hashCode));
     });
 
+    test('should instantiate and serialize payment card item correctly', () {
+      final cardItem = VaultItem(
+        id: 'card-1',
+        title: 'BPI Visa Signature',
+        type: 'card',
+        usernameEncrypted: 'enc_holder',
+        passwordEncrypted: 'enc_number',
+        cardDetailsEnc: 'enc_card_details_payload',
+        iv: 'iv_val',
+        category: 'Finance',
+        accountNumber: '•••• •••• •••• 1234',
+        updatedAt: testDate,
+      );
+
+      expect(cardItem.isCard, isTrue);
+      expect(cardItem.isLogin, isFalse);
+
+      final map = cardItem.toMap();
+      expect(map['type'], 'card');
+      expect(map['card_details_enc'], 'enc_card_details_payload');
+
+      final fromMap = VaultItem.fromMap(map);
+      expect(fromMap.isCard, isTrue);
+      expect(fromMap.cardDetailsEnc, 'enc_card_details_payload');
+    });
+
     test('should verify VaultItemAdapter typeId is 0', () {
       final adapter = VaultItemAdapter();
       expect(adapter.typeId, 0);
+    });
+  });
+
+  group('CardBrandHelper & CardDetails Tests', () {
+    test('detects card brands correctly from leading digits', () {
+      expect(CardBrandHelper.detectBrand('4123 4567 8901 2345'), CardBrand.visa);
+      expect(CardBrandHelper.detectBrand('5123 4567 8901 2345'), CardBrand.mastercard);
+      expect(CardBrandHelper.detectBrand('3412 3456 7890 123'), CardBrand.amex);
+      expect(CardBrandHelper.detectBrand('6011 0000 0000 0000'), CardBrand.discover);
+      expect(CardBrandHelper.detectBrand('3528 0000 0000 0000'), CardBrand.jcb);
+      expect(CardBrandHelper.detectBrand('6200 0000 0000 0000'), CardBrand.unionPay);
+      expect(CardBrandHelper.detectBrand(''), CardBrand.generic);
+    });
+
+    test('CardDetails masks card numbers and extracts last 4 correctly', () {
+      const card = CardDetails(
+        cardholderName: 'Juan Dela Cruz',
+        cardNumber: '4123 4567 8901 2345',
+        expiryDate: '12/28',
+        cvv: '123',
+      );
+
+      expect(card.last4, '2345');
+      expect(card.maskedCardNumber, '•••• •••• •••• 2345');
+      expect(card.brand, CardBrand.visa);
+
+      final jsonStr = card.toJson();
+      final fromJson = CardDetails.fromJson(jsonStr);
+      expect(fromJson.cardholderName, 'Juan Dela Cruz');
+      expect(fromJson.cardNumber, '4123 4567 8901 2345');
+      expect(fromJson.expiryDate, '12/28');
+      expect(fromJson.cvv, '123');
     });
   });
 }
