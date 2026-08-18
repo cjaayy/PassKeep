@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/backup_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
-import '../../../auth/presentation/widgets/supabase_auth_sheet.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../../vault/presentation/providers/vault_providers.dart';
 
@@ -105,15 +104,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _openAuthSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const SupabaseAuthSheet(),
-    );
-  }
-
   Future<void> _confirmSignOut() async {
     final shouldSignOut = await showDialog<bool>(
       context: context,
@@ -158,6 +148,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final userState = ref.watch(supabaseUserProvider);
     final syncState = ref.watch(syncNotifierProvider);
 
+    final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
@@ -171,41 +163,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         children: [
-          // Section: Account & Cloud Sync
-          _buildSectionHeader('Account & Cloud Sync'),
-          _buildCard(
-            children: [
-              if (!userState.isAuthenticated) ...[
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.cloud_off_rounded, color: Color(0xFF38BDF8)),
-                  ),
-                  title: const Text(
-                    'Local Vault (Offline)',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text(
-                    'Sign in to sync your vault to Supabase Cloud',
-                    style: TextStyle(color: Colors.white60, fontSize: 12),
-                  ),
-                  trailing: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    onPressed: _openAuthSheet,
-                    child: const Text('Sign In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ] else ...[
+          // Section: Account & Cloud Sync (Only rendered when cloud account is connected and offline mode is false)
+          if (isCloudSyncEnabled) ...[
+            _buildSectionHeader('Account & Cloud Sync'),
+            _buildCard(
+              children: [
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
@@ -263,9 +225,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: 20),
+            ),
+            const SizedBox(height: 20),
+          ],
 
           // Section: Vault Data Transfer
           _buildSectionHeader('Data Transfer & Backups'),

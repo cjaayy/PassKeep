@@ -3,31 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:passkeep/features/auth/presentation/providers/auth_providers.dart';
 import 'package:passkeep/features/auth/presentation/providers/supabase_auth_providers.dart';
-import 'package:passkeep/features/vault/data/datasources/vault_local_datasource.dart';
-import 'package:passkeep/features/vault/data/models/vault_item.dart';
-import 'package:passkeep/features/vault/presentation/providers/vault_providers.dart';
-import 'package:passkeep/features/vault/presentation/screens/vault_home_screen.dart';
+import 'package:passkeep/features/settings/presentation/screens/settings_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
-
-class FakeWidgetLocalDataSource implements IVaultLocalDataSource {
-  final List<VaultItem> items = [];
-
-  @override
-  Future<List<VaultItem>> getAllVaultItems() async => List.from(items);
-
-  @override
-  Future<VaultItem?> getVaultItemById(String id) async =>
-      items.firstWhere((i) => i.id == id);
-
-  @override
-  Future<void> saveVaultItem(VaultItem item) async => items.add(item);
-
-  @override
-  Future<void> deleteVaultItem(String id) async => items.removeWhere((i) => i.id == id);
-
-  @override
-  Future<void> clearAll() async => items.clear();
-}
 
 class FakeSupabaseUserNotifier extends StateNotifier<SupabaseUserState>
     implements SupabaseUserNotifier {
@@ -72,25 +49,11 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 }
 
 void main() {
-  testWidgets('VaultHomeScreen displays items and hides Cloud Sync button when offline/unauthenticated',
+  testWidgets('SettingsScreen hides Account & Cloud Sync section in Offline-Only Mode',
       (WidgetTester tester) async {
-    final fakeLocal = FakeWidgetLocalDataSource();
-    fakeLocal.items.add(
-      VaultItem(
-        id: 'test-1',
-        title: 'GitHub Enterprise',
-        usernameEncrypted: 'enc_user',
-        passwordEncrypted: 'enc_pass',
-        iv: 'iv_val',
-        category: 'Work',
-        updatedAt: DateTime.now(),
-      ),
-    );
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
           authNotifierProvider.overrideWith(
             (ref) => FakeAuthNotifier(
               const AuthState(
@@ -106,50 +69,40 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: VaultHomeScreen(),
+          home: SettingsScreen(),
         ),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    // Verify App Bar & Brand
-    expect(find.text('PassKeep'), findsOneWidget);
+    // Verify Settings Title
+    expect(find.text('Settings & Vault'), findsOneWidget);
 
-    // Verify Cloud Sync button is HIDDEN
-    expect(find.byTooltip('Sync with Cloud'), findsNothing);
+    // Verify Account & Cloud Sync section is HIDDEN
+    expect(find.text('ACCOUNT & CLOUD SYNC'), findsNothing);
+    expect(find.text('Cloud Synchronization'), findsNothing);
 
-    // Verify Search Input
-    expect(find.byType(TextField), findsOneWidget);
-
-    // Verify Category Chips
-    expect(find.widgetWithText(FilterChip, 'All'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, 'Work'), findsOneWidget);
-
-    // Verify Loaded Item Card
-    expect(find.text('GitHub Enterprise'), findsOneWidget);
-
-    // Verify FAB
-    expect(find.text('Add Password'), findsOneWidget);
+    // Verify other sections remain accessible
+    expect(find.text('DATA TRANSFER & BACKUPS'), findsOneWidget);
+    expect(find.text('SECURITY & ACCESS'), findsOneWidget);
+    expect(find.text('ABOUT PASSKEEP'), findsOneWidget);
   });
 
-  testWidgets('VaultHomeScreen shows Cloud Sync button when cloud user is authenticated and not offline',
+  testWidgets('SettingsScreen renders Account & Cloud Sync when cloud account is connected',
       (WidgetTester tester) async {
-    final fakeLocal = FakeWidgetLocalDataSource();
-
     final testUser = sb.User(
       id: 'test-user-id',
       appMetadata: {},
       userMetadata: {},
       aud: 'authenticated',
       createdAt: DateTime.now().toIso8601String(),
-      email: 'user@example.com',
+      email: 'alex@passkeep.io',
     );
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
           authNotifierProvider.overrideWith(
             (ref) => FakeAuthNotifier(
               const AuthState(
@@ -165,14 +118,16 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: VaultHomeScreen(),
+          home: SettingsScreen(),
         ),
       ),
     );
 
     await tester.pumpAndSettle();
 
-    // Verify Cloud Sync button is VISIBLE
-    expect(find.byTooltip('Sync with Cloud'), findsOneWidget);
+    // Verify Account & Cloud Sync section is VISIBLE
+    expect(find.text('ACCOUNT & CLOUD SYNC'), findsOneWidget);
+    expect(find.text('alex@passkeep.io'), findsOneWidget);
+    expect(find.text('Cloud Synchronization'), findsOneWidget);
   });
 }

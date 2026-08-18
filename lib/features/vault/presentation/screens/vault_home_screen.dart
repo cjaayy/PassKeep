@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../auth/presentation/providers/supabase_auth_providers.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../data/models/vault_item.dart';
@@ -82,7 +83,11 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
   @override
   Widget build(BuildContext context) {
     final vaultState = ref.watch(vaultNotifierProvider);
+    final authState = ref.watch(authNotifierProvider);
+    final userState = ref.watch(supabaseUserProvider);
     final syncState = ref.watch(syncNotifierProvider);
+
+    final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -100,18 +105,19 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
           ],
         ),
         actions: [
-          // Sync Button
-          RotationTransition(
-            turns: _syncAnimationController,
-            child: IconButton(
-              icon: Icon(
-                Icons.sync_rounded,
-                color: syncState.isSyncing ? const Color(0xFF10B981) : Colors.white70,
+          // Sync Button (Only visible if cloud account is connected and not in offline-only mode)
+          if (isCloudSyncEnabled)
+            RotationTransition(
+              turns: _syncAnimationController,
+              child: IconButton(
+                icon: Icon(
+                  Icons.sync_rounded,
+                  color: syncState.isSyncing ? const Color(0xFF10B981) : Colors.white70,
+                ),
+                tooltip: 'Sync with Cloud',
+                onPressed: syncState.isSyncing ? null : _handleSync,
               ),
-              tooltip: 'Sync with Cloud',
-              onPressed: syncState.isSyncing ? null : _handleSync,
             ),
-          ),
           // Settings & Backups Button
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white70),
