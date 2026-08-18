@@ -8,6 +8,7 @@ import '../../data/models/vault_item.dart';
 import '../providers/vault_providers.dart';
 import '../providers/vault_state.dart';
 import '../widgets/vault_detail_sheet.dart';
+import '../widgets/vault_group_card.dart';
 import '../widgets/vault_item_card.dart';
 import 'add_edit_vault_screen.dart';
 
@@ -80,6 +81,25 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
   }
 
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Row(
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final vaultState = ref.watch(vaultNotifierProvider);
@@ -100,7 +120,12 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             SizedBox(width: 10),
             Text(
               'PassKeep',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
             ),
           ],
         ),
@@ -141,6 +166,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Search Input Bar
           Padding(
@@ -152,6 +178,8 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                 ref.read(vaultNotifierProvider.notifier).setSearchQuery(query);
               },
               decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1E293B),
                 hintText: 'Search passwords, usernames, categories...',
                 hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
                 prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF10B981)),
@@ -165,31 +193,48 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                       )
                     : null,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF334155), width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                ),
               ),
             ),
           ),
 
+          // Categories Section Header
+          _buildSectionHeader('Categories'),
+
           // Category Chips Bar
           SizedBox(
-            height: 48,
+            height: 44,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _categories.length,
               itemBuilder: (context, index) {
                 final category = _categories[index];
-                final isSelected = vaultState.selectedCategory.toLowerCase() == category.toLowerCase();
+                final isSelected =
+                    vaultState.selectedCategory.toLowerCase() == category.toLowerCase();
 
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: FilterChip(
-                    label: Text(category),
+                    label: Text(category.toUpperCase()),
                     selected: isSelected,
                     showCheckmark: false,
                     labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.white60,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 13,
+                      color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      letterSpacing: 0.8,
                     ),
                     backgroundColor: const Color(0xFF1E293B),
                     selectedColor: const Color(0xFF10B981),
@@ -197,7 +242,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                       color: isSelected ? const Color(0xFF10B981) : const Color(0xFF334155),
                       width: 1,
                     ),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     onSelected: (_) {
                       ref.read(vaultNotifierProvider.notifier).setCategoryFilter(category);
                     },
@@ -206,9 +251,17 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               },
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
-          // Vault Items List
+          // Vault Accounts Section Header
+          if (vaultState.filteredItems.isNotEmpty)
+            _buildSectionHeader(
+              vaultState.groupedItems.length == vaultState.filteredItems.length
+                  ? 'Vault Accounts (${vaultState.filteredItems.length})'
+                  : 'Vault Accounts (${vaultState.groupedItems.length} Platforms • ${vaultState.filteredItems.length} Accounts)',
+            ),
+
+          // Vault Items List (Grouped or Single Cards)
           Expanded(
             child: _buildVaultContent(vaultState),
           ),
@@ -219,7 +272,10 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
         foregroundColor: Colors.white,
         elevation: 4,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add Password', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: const Text(
+          'ADD PASSWORD',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+        ),
         onPressed: () {
           Navigator.push(
             context,
@@ -245,7 +301,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                Icons.folder_open_rounded,
+                Icons.shield_outlined,
                 size: 64,
                 color: const Color(0xFF334155).withValues(alpha: 0.8),
               ),
@@ -272,19 +328,29 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
       );
     }
 
+    final groups = state.groupedItems;
+
     return RefreshIndicator(
       color: const Color(0xFF10B981),
       backgroundColor: const Color(0xFF1E293B),
       onRefresh: () => ref.read(vaultNotifierProvider.notifier).refresh(),
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 90, top: 4),
-        itemCount: state.filteredItems.length,
+        itemCount: groups.length,
         itemBuilder: (context, index) {
-          final item = state.filteredItems[index];
-          return VaultItemCard(
-            item: item,
-            onTap: () => _openDetailSheet(item),
-          );
+          final group = groups[index];
+          if (group.isMultiAccount) {
+            return VaultGroupCard(
+              group: group,
+              onItemTap: _openDetailSheet,
+            );
+          } else {
+            final singleItem = group.items.first;
+            return VaultItemCard(
+              item: singleItem,
+              onTap: () => _openDetailSheet(singleItem),
+            );
+          }
         },
       ),
     );

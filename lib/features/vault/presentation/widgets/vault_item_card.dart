@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/utils/clipboard_service.dart';
+import '../../../../core/utils/service_brand_helper.dart';
 import '../../data/models/vault_item.dart';
 
 /// Card widget representing a single encrypted VaultItem in the list
@@ -15,33 +16,16 @@ class VaultItemCard extends ConsumerWidget {
     required this.onTap,
   });
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'work':
-        return const Color(0xFF3B82F6); // Blue
-      case 'social':
-        return const Color(0xFF8B5CF6); // Purple
-      case 'finance':
-        return const Color(0xFF10B981); // Emerald
-      case 'personal':
-        return const Color(0xFFF59E0B); // Amber
-      default:
-        return const Color(0xFF64748B); // Slate
-    }
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'work':
-        return Icons.work_outline_rounded;
-      case 'social':
-        return Icons.people_outline_rounded;
-      case 'finance':
-        return Icons.account_balance_outlined;
-      case 'personal':
-        return Icons.person_outline_rounded;
-      default:
-        return Icons.lock_outline_rounded;
+  String _getDecryptedUsername(WidgetRef ref) {
+    try {
+      final encryptionService = ref.read(encryptionServiceProvider);
+      final plainUsername = encryptionService.decrypt(
+        cipherTextBase64: item.usernameEncrypted,
+        ivBase64: item.iv,
+      );
+      return plainUsername.trim();
+    } catch (_) {
+      return '';
     }
   }
 
@@ -60,7 +44,7 @@ class VaultItemCard extends ConsumerWidget {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20),
                 const SizedBox(width: 8),
                 Text('Copied password for "${item.title}". Auto-clears in 30s.'),
               ],
@@ -85,11 +69,20 @@ class VaultItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final catColor = _getCategoryColor(item.category);
+    final username = _getDecryptedUsername(ref);
+    final displaySubtitle = username.isNotEmpty
+        ? username
+        : (item.usernameEncrypted.isNotEmpty ? '••••••••' : 'No username');
+
+    final brandIcon = ServiceBrandHelper.getIconForService(
+      item.title,
+      category: item.category,
+    );
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       color: const Color(0xFF1E293B),
+      elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: Color(0xFF334155), width: 1),
@@ -101,19 +94,24 @@ class VaultItemCard extends ConsumerWidget {
           padding: const EdgeInsets.all(14.0),
           child: Row(
             children: [
-              // Category Icon Avatar
+              // Dynamic Service Brand Avatar
               Container(
-                width: 44,
-                height: 44,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: catColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF334155), width: 1),
                 ),
-                child: Icon(_getCategoryIcon(item.category), color: catColor, size: 22),
+                child: Icon(
+                  brandIcon,
+                  color: const Color(0xFF94A3B8),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 14),
 
-              // Title and Masked Details
+              // Title and Account Username/Email Subtext
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,8 +122,8 @@ class VaultItemCard extends ConsumerWidget {
                           child: Text(
                             item.title,
                             style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                             maxLines: 1,
@@ -133,33 +131,36 @@ class VaultItemCard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Category Badge
+                        // Monochromatic Neutral Category Badge
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: catColor.withValues(alpha: 0.12),
+                            color: const Color(0xFF334155),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: catColor.withValues(alpha: 0.3), width: 0.8),
+                            border: Border.all(color: const Color(0xFF475569), width: 0.8),
                           ),
                           child: Text(
-                            item.category,
-                            style: TextStyle(
-                              color: catColor,
+                            item.category.toUpperCase(),
+                            style: const TextStyle(
+                              color: Color(0xFFE2E8F0),
                               fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      '••••••••••••',
-                      style: TextStyle(
-                        color: Colors.white54,
+                    const SizedBox(height: 3),
+                    Text(
+                      displaySubtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF94A3B8),
                         fontSize: 13,
-                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w400,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -167,7 +168,7 @@ class VaultItemCard extends ConsumerWidget {
 
               // Quick Copy Button
               IconButton(
-                icon: const Icon(Icons.copy_rounded, color: Colors.white60, size: 20),
+                icon: const Icon(Icons.copy_rounded, color: Color(0xFF64748B), size: 18),
                 tooltip: 'Copy Password',
                 onPressed: () => _quickCopyPassword(context, ref),
               ),

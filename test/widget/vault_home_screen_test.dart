@@ -123,14 +123,14 @@ void main() {
     expect(find.byType(TextField), findsOneWidget);
 
     // Verify Category Chips
-    expect(find.widgetWithText(FilterChip, 'All'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, 'Work'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'ALL'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'WORK'), findsOneWidget);
 
     // Verify Loaded Item Card
     expect(find.text('GitHub Enterprise'), findsOneWidget);
 
     // Verify FAB
-    expect(find.text('Add Password'), findsOneWidget);
+    expect(find.text('ADD PASSWORD'), findsOneWidget);
   });
 
   testWidgets('VaultHomeScreen shows Cloud Sync button when cloud user is authenticated and not offline',
@@ -174,5 +174,69 @@ void main() {
 
     // Verify Cloud Sync button is VISIBLE
     expect(find.byTooltip('Sync with Cloud'), findsOneWidget);
+  });
+
+  testWidgets('VaultHomeScreen groups multiple accounts under the same platform into an expandable card',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeWidgetLocalDataSource();
+    fakeLocal.items.addAll([
+      VaultItem(
+        id: 'gmail-1',
+        title: 'Gmail',
+        usernameEncrypted: 'enc_work',
+        passwordEncrypted: 'enc_pass_1',
+        iv: 'iv_1',
+        category: 'Work',
+        updatedAt: DateTime.now(),
+      ),
+      VaultItem(
+        id: 'gmail-2',
+        title: 'Gmail',
+        usernameEncrypted: 'enc_personal',
+        passwordEncrypted: 'enc_pass_2',
+        iv: 'iv_2',
+        category: 'Personal',
+        updatedAt: DateTime.now(),
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          authNotifierProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              const AuthState(
+                status: AuthStatus.authenticated,
+                isOfflineOnlyMode: true,
+              ),
+            ),
+          ),
+          supabaseUserProvider.overrideWith(
+            (ref) => FakeSupabaseUserNotifier(
+              const SupabaseUserState.initial(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: VaultHomeScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify Group Title & Multi-Account Badge
+    expect(find.text('Gmail'), findsOneWidget);
+    expect(find.text('2 ACCOUNTS'), findsOneWidget);
+    expect(find.text('• Tap to expand'), findsOneWidget);
+
+    // Tap to expand group
+    await tester.tap(find.text('Gmail'));
+    await tester.pumpAndSettle();
+
+    // Verify both account rows are accessible
+    expect(find.byIcon(Icons.account_circle_outlined), findsNWidgets(2));
+    expect(find.byIcon(Icons.copy_rounded), findsNWidgets(2));
   });
 }
