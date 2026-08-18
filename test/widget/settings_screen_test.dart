@@ -84,7 +84,7 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 }
 
 void main() {
-  testWidgets('SettingsScreen hides Account & Cloud Sync section in Offline-Only Mode',
+  testWidgets('SettingsScreen displays Connect Cloud Account option in Offline-Only Mode',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -115,13 +115,15 @@ void main() {
     // Verify Settings Title
     expect(find.text('Settings & Vault'), findsOneWidget);
 
-    // Verify Account & Cloud Sync section is HIDDEN
-    expect(find.text('ACCOUNT & CLOUD SYNC'), findsNothing);
-    expect(find.text('Cloud Synchronization'), findsNothing);
-    expect(find.text('Auto-Sync Passwords'), findsNothing);
+    // Verify Account & Cloud Sync section is VISIBLE with Offline info and Connect Button
+    expect(find.text('ACCOUNT & CLOUD SYNC'), findsOneWidget);
+    expect(find.text('Cloud Sync Disabled'), findsOneWidget);
+    expect(find.text('Sign In / Connect Cloud Account'), findsOneWidget);
 
     // Verify other sections remain accessible
     expect(find.text('DATA TRANSFER & BACKUPS'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await tester.pumpAndSettle();
     expect(find.text('SECURITY & ACCESS'), findsOneWidget);
     expect(find.text('ABOUT PASSKEEP'), findsOneWidget);
   });

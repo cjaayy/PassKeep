@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/backup_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
+import '../../../auth/presentation/widgets/supabase_auth_sheet.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../../vault/presentation/providers/vault_providers.dart';
 import '../providers/settings_providers.dart';
@@ -194,6 +195,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _connectCloudAccount() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const SupabaseAuthSheet(initialTabIndex: 0),
+    );
+
+    final userState = ref.read(supabaseUserProvider);
+    if (userState.isAuthenticated) {
+      ref.read(authNotifierProvider.notifier).setOfflineOnlyMode(false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.cloud_done_rounded, color: Color(0xFF10B981), size: 20),
+                const SizedBox(width: 8),
+                Text('Connected cloud account: ${userState.email}'),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E293B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
@@ -216,9 +246,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         children: [
-          // Section: Account & Cloud Sync (Only rendered when cloud account is connected and offline mode is false)
+          // Section: Account & Cloud Sync
+          _buildSectionHeader('Account & Cloud Sync'),
           if (isCloudSyncEnabled) ...[
-            _buildSectionHeader('Account & Cloud Sync'),
             _buildCard(
               children: [
                 ListTile(
@@ -338,8 +368,53 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+          ] else ...[
+            _buildCard(
+              children: [
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF64748B).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.cloud_off_rounded, color: Color(0xFF94A3B8)),
+                  ),
+                  title: const Text(
+                    'Cloud Sync Disabled',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Operating in Offline Mode. Multi-device sync is disabled.',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                ),
+                const Divider(color: Color(0xFF334155), height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(14.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.cloud_sync_rounded, size: 18),
+                      label: const Text(
+                        'Sign In / Connect Cloud Account',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                      ),
+                      onPressed: _connectCloudAccount,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
+          const SizedBox(height: 20),
 
           // Section: Vault Data Transfer
           _buildSectionHeader('Data Transfer & Backups'),
