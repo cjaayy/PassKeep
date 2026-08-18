@@ -4,20 +4,36 @@ cd /d "%~dp0\.."
 title PassKeep - Flutter Runner Tool
 color 0A
 
+:: Auto-detect compatible Java Runtime (Android Studio JBR or JDK)
+if exist "C:\Program Files\Android\Android Studio\jbr\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+    set "PATH=C:\Program Files\Android\Android Studio\jbr\bin;!PATH!"
+) else if exist "%LOCALAPPDATA%\Android\Sdk\jbr\bin\java.exe" (
+    set "JAVA_HOME=%LOCALAPPDATA%\Android\Sdk\jbr"
+    set "PATH=%LOCALAPPDATA%\Android\Sdk\jbr\bin;!PATH!"
+) else if exist "C:\Program Files\Java\jdk-22\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-22"
+    set "PATH=C:\Program Files\Java\jdk-22\bin;!PATH!"
+) else if exist "C:\Program Files\Java\jdk-21\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-21"
+    set "PATH=C:\Program Files\Java\jdk-21\bin;!PATH!"
+) else if exist "C:\Program Files\Java\jdk-17\bin\java.exe" (
+    set "JAVA_HOME=C:\Program Files\Java\jdk-17"
+    set "PATH=C:\Program Files\Java\jdk-17\bin;!PATH!"
+)
+
 :menu
 cls
 echo ========================================================
-echo              PASSKEEP - FLUTTER HELPER TOOL             
+echo             PASSKEEP - FLUTTER HELPER TOOL             
 echo ========================================================
 echo.
 echo   [1] Fast Debug (Attach Mode - Instant / No Rebuild)
 echo   [2] Debug Mode - Physical Device (USB / Full Build)
-echo   [3] Debug Mode - Physical Device (Wireless / Wi-Fi)
+echo   [3] Debug Mode - Physical Device (Wireless Wi-Fi)
 echo   [4] Pair Wireless Device (ADB Pair - 1-Time Setup)
-echo   [5] Debug Mode - Chrome Browser
-echo   [6] Debug Mode - Edge Browser
-echo   [7] Build Release APK (Obfuscated) + Open Output Folder
-echo   [8] Exit
+echo   [5] Build Release APK (Obfuscated) + Open Output Folder
+echo   [6] Exit
 echo.
 echo ========================================================
 echo   Debug / Attach Mode Controls:
@@ -26,16 +42,14 @@ echo   - Press 'R' in terminal for HOT RESTART
 echo   - Press 'q' in terminal to QUIT / DETACH
 echo ========================================================
 echo.
-set /p choice="Select an option (1-8): "
+set /p choice="Select an option (1-6): "
 
 if "!choice!"=="1" goto fast_attach
 if "!choice!"=="2" goto debug_usb
 if "!choice!"=="3" goto debug_wireless
 if "!choice!"=="4" goto adb_pair
-if "!choice!"=="5" goto debug_chrome
-if "!choice!"=="6" goto debug_edge
-if "!choice!"=="7" goto build_release
-if "!choice!"=="8" goto exit
+if "!choice!"=="5" goto build_release
+if "!choice!"=="6" goto exit
 
 echo.
 echo Invalid option! Please try again.
@@ -64,7 +78,7 @@ goto menu
 :debug_usb
 cls
 echo ========================================================
-echo         RUNNING DEBUG MODE: USB PHYSICAL DEVICE
+echo        RUNNING DEBUG MODE: USB PHYSICAL DEVICE
 echo ========================================================
 echo.
 if not exist "build\app\outputs\flutter-apk\app-debug.apk" (
@@ -153,37 +167,13 @@ echo.
 pause
 goto menu
 
-:debug_chrome
-cls
-echo ========================================================
-echo             RUNNING DEBUG MODE: CHROME BROWSER
-echo ========================================================
-echo.
-echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit
-echo.
-flutter run -d chrome
-pause
-goto menu
-
-:debug_edge
-cls
-echo ========================================================
-echo              RUNNING DEBUG MODE: EDGE BROWSER
-echo ========================================================
-echo.
-echo Controls: [r] Hot Reload ^| [R] Hot Restart ^| [q] Quit
-echo.
-flutter run -d edge
-pause
-goto menu
-
 :build_release
 cls
 echo ========================================================
 echo     BUILDING FULL OBFUSCATED RELEASE APK (PassKeep)...
 echo ========================================================
 echo.
-flutter build apk --release --obfuscate --split-debug-info=./build/app/outputs/symbols
+call flutter build apk --release --obfuscate --split-debug-info=./build/app/outputs/symbols
 if !ERRORLEVEL! EQU 0 (
     echo.
     echo ========================================================
