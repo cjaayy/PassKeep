@@ -80,11 +80,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Evaluates whether the app has an existing PIN configured or needs first-time setup
   Future<void> checkAuthState() async {
+    if (state.status == AuthStatus.authenticated) return;
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
 
     try {
       final salt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
       final pinHash = await _secureStorage.read(key: StorageKeys.masterPinHashKey);
+
+      if (state.status == AuthStatus.authenticated) return;
 
       bool biometricsAvailable = false;
       try {
@@ -93,6 +96,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         biometricsAvailable = canCheck || isSupported;
       } catch (_) {
         biometricsAvailable = false;
+      }
+
+      // Guard: Do not downgrade if already authenticated in memory
+      if (state.status == AuthStatus.authenticated) {
+        state = state.copyWith(isBiometricsAvailable: biometricsAvailable);
+        return;
       }
 
       if (salt == null || pinHash == null) {
@@ -107,10 +116,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        status: AuthStatus.uninitialized,
-        errorMessage: e.toString(),
-      );
+      if (state.status != AuthStatus.authenticated) {
+        state = state.copyWith(
+          status: AuthStatus.uninitialized,
+          errorMessage: e.toString(),
+        );
+      }
     }
   }
 
@@ -123,12 +134,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     try {
       final salt = KeyDerivation.generateRandomSalt(16);
-      final masterKey = KeyDerivation.deriveKey256(password: pin, salt: salt);
+      final masterKey = await KeyDerivation.deriveKey256Async(password: pin, salt: salt);
       final pinHash = sha256.convert(utf8.encode('$pin:$salt')).toString();
 
       await _secureStorage.write(key: StorageKeys.masterPinSaltKey, value: salt);
       await _secureStorage.write(key: StorageKeys.masterPinHashKey, value: pinHash);
       await _encryptionService.saveMasterKeyToStorage(masterKey);
+      _encryptionService.setActiveKey(masterKey);
 
       state = state.copyWith(
         status: AuthStatus.authenticated,
@@ -164,7 +176,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return false;
       }
 
-      final masterKey = KeyDerivation.deriveKey256(password: pin, salt: salt);
+      final masterKey = await KeyDerivation.deriveKey256Async(password: pin, salt: salt);
       _encryptionService.setActiveKey(masterKey);
 
       state = state.copyWith(

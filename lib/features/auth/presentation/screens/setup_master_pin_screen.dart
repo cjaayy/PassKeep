@@ -14,20 +14,41 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
   String _enteredPin = '';
   String _confirmedPin = '';
   bool _isConfirming = false;
+  bool _isLoading = false;
   String? _validationError;
 
   void _onDigitPressed(String digit) {
+    if (_isLoading) return;
+
+    bool shouldSubmit = false;
+
     setState(() {
       _validationError = null;
       if (!_isConfirming) {
-        if (_enteredPin.length < 6) _enteredPin += digit;
+        if (_enteredPin.length < 6) {
+          _enteredPin += digit;
+          if (_enteredPin.length == 6) {
+            _isConfirming = true;
+          }
+        }
       } else {
-        if (_confirmedPin.length < 6) _confirmedPin += digit;
+        if (_confirmedPin.length < 6) {
+          _confirmedPin += digit;
+          if (_confirmedPin.length == 6) {
+            shouldSubmit = true;
+          }
+        }
       }
     });
+
+    if (shouldSubmit) {
+      _handleNextOrSubmit();
+    }
   }
 
   void _onDeletePressed() {
+    if (_isLoading) return;
+
     setState(() {
       _validationError = null;
       if (!_isConfirming) {
@@ -43,6 +64,8 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
   }
 
   Future<void> _handleNextOrSubmit() async {
+    if (_isLoading) return;
+
     if (!_isConfirming) {
       if (_enteredPin.length < 6) {
         setState(() => _validationError = 'PIN must be exactly 6 digits');
@@ -61,13 +84,56 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
         return;
       }
 
-      final success = await ref
-          .read(authNotifierProvider.notifier)
-          .setupMasterPin(_enteredPin);
+      setState(() {
+        _isLoading = true;
+        _validationError = null;
+      });
 
-      if (!success && mounted) {
-        final error = ref.read(authNotifierProvider).errorMessage;
-        setState(() => _validationError = error ?? 'Failed to setup PIN');
+      try {
+        final success = await ref
+            .read(authNotifierProvider.notifier)
+            .setupMasterPin(_enteredPin);
+
+        if (!mounted) return;
+
+        if (success) {
+          setState(() {
+            _enteredPin = '';
+            _confirmedPin = '';
+            _isConfirming = false;
+            _isLoading = false;
+            _validationError = null;
+          });
+
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          final error = ref.read(authNotifierProvider).errorMessage ?? 'Failed to setup PIN';
+          setState(() {
+            _isLoading = false;
+            _validationError = error;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(error),
+              backgroundColor: const Color(0xFFEF4444),
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        final error = 'Setup failed: ${e.toString()}';
+        setState(() {
+          _isLoading = false;
+          _validationError = error;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
       }
     }
   }
@@ -166,6 +232,7 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
+                  key: const Key('submit_pin_button'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
@@ -174,11 +241,16 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: currentPin.length >= 6 ? _handleNextOrSubmit : null,
-                  child: Text(
-                    _isConfirming ? 'Complete Setup' : 'Continue',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
+                  onPressed: (currentPin.length >= 6 && !_isLoading) ? _handleNextOrSubmit : null,
+                  child: _isLoading
+                      ? const Text(
+                          'Setting up...',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white70),
+                        )
+                      : Text(
+                          _isConfirming ? 'Complete Setup' : 'Continue',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
 
@@ -228,7 +300,8 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
               width: 72,
               height: 72,
               child: IconButton(
-                onPressed: _onDeletePressed,
+                key: const Key('keypad_backspace'),
+                onPressed: _isLoading ? null : _onDeletePressed,
                 icon: const Icon(Icons.backspace_outlined, color: Colors.white70, size: 26),
               ),
             ),
@@ -248,8 +321,9 @@ class _SetupMasterPinScreenState extends ConsumerState<SetupMasterPinScreen> {
         border: Border.all(color: const Color(0xFF334155), width: 1),
       ),
       child: InkWell(
+        key: Key('keypad_$digit'),
         borderRadius: BorderRadius.circular(36),
-        onTap: () => _onDigitPressed(digit),
+        onTap: _isLoading ? null : () => _onDigitPressed(digit),
         child: Center(
           child: Text(
             digit,

@@ -1,12 +1,58 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+
+class _DeriveKeyArgs {
+  final String password;
+  final String salt;
+  final int iterations;
+
+  const _DeriveKeyArgs({
+    required this.password,
+    required this.salt,
+    required this.iterations,
+  });
+}
+
+String _deriveKeyWorker(_DeriveKeyArgs args) {
+  return KeyDerivation.deriveKey256(
+    password: args.password,
+    salt: args.salt,
+    iterations: args.iterations,
+  );
+}
 
 /// Cryptographic Key Derivation helper using PBKDF2 with HMAC-SHA256.
 abstract final class KeyDerivation {
   /// Default recommended iteration count for PBKDF2 key derivation.
   static const int defaultIterations = 100000;
+
+  /// Asynchronously derives a 256-bit (32-byte) key on a background isolate to keep UI thread at 60fps.
+  static Future<String> deriveKey256Async({
+    required String password,
+    required String salt,
+    int iterations = defaultIterations,
+  }) {
+    // In test harnesses, return synchronously to prevent isolate message starvation in FakeAsync
+    if (const bool.fromEnvironment('FLUTTER_TEST') || Zone.current[#test.declarer] != null) {
+      return Future.value(deriveKey256(
+        password: password,
+        salt: salt,
+        iterations: iterations,
+      ));
+    }
+
+    return compute(
+      _deriveKeyWorker,
+      _DeriveKeyArgs(
+        password: password,
+        salt: salt,
+        iterations: iterations,
+      ),
+    );
+  }
 
   /// Derives a 256-bit (32-byte) key from [password] and [salt] using PBKDF2-HMAC-SHA256.
   ///
