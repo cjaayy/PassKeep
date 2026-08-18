@@ -18,6 +18,9 @@ abstract class ISupabaseAuthDataSource {
   /// Signs out the currently authenticated user
   Future<void> signOut();
 
+  /// Updates user metadata in Supabase GoTrue
+  Future<UserResponse> updateUserMetadata(Map<String, dynamic> data);
+
   /// Returns the current authenticated [User], if any
   User? get currentUser;
 
@@ -101,6 +104,21 @@ class SupabaseAuthDataSource implements ISupabaseAuthDataSource {
     } catch (e) {
       if (e is Failure) rethrow;
       throw AuthFailure('Failed to sign out: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<UserResponse> updateUserMetadata(Map<String, dynamic> data) async {
+    try {
+      final response = await _supabase.auth.updateUser(
+        UserAttributes(data: data),
+      );
+      return response;
+    } on AuthException catch (e) {
+      throw AuthFailure(e.message);
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw AuthFailure('Failed to update user metadata: ${e.toString()}');
     }
   }
 }

@@ -134,6 +134,20 @@ void main() {
       expect(authNotifier.state.errorMessage, contains('Incorrect PIN'));
     });
 
+    test('setupMasterPin reuses existing cloud salt if present in storage', () async {
+      const existingCloudSalt = 'cloud_restored_salt_999';
+      await fakeStorage.write(
+        key: StorageKeys.masterPinSaltKey,
+        value: existingCloudSalt,
+      );
+
+      final result = await authNotifier.setupMasterPin('654321');
+      expect(result, isTrue);
+
+      final storedSalt = await fakeStorage.read(key: StorageKeys.masterPinSaltKey);
+      expect(storedSalt, existingCloudSalt);
+    });
+
     test('lockVault should clear active encryption key and lock state', () async {
       await authNotifier.setupMasterPin('112233');
       expect(authNotifier.state.status, AuthStatus.authenticated);

@@ -55,6 +55,9 @@ class FakeSupabaseUserNotifier extends StateNotifier<SupabaseUserState>
   Future<void> signOut() async {
     state = const SupabaseUserState.initial();
   }
+
+  @override
+  Future<void> syncLocalSaltToCloud(String salt) async {}
 }
 
 class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier {

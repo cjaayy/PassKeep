@@ -3,6 +3,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/security/encryption_service.dart';
 import '../../../../core/security/key_derivation.dart';
@@ -133,7 +134,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     try {
-      final salt = KeyDerivation.generateRandomSalt(16);
+      // 1. Check if a salt already exists in local secure storage (e.g. restored from cloud metadata)
+      final existingSalt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
+      final salt = (existingSalt != null && existingSalt.isNotEmpty)
+          ? existingSalt
+          : KeyDerivation.generateRandomSalt(16);
       final masterKey = await KeyDerivation.deriveKey256Async(password: pin, salt: salt);
       final pinHash = sha256.convert(utf8.encode('$pin:$salt')).toString();
 
@@ -141,6 +146,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _secureStorage.write(key: StorageKeys.masterPinHashKey, value: pinHash);
       await _encryptionService.saveMasterKeyToStorage(masterKey);
       _encryptionService.setActiveKey(masterKey);
+
+      // 2. Best effort: If user is authenticated in Supabase, update their cloud metadata with this salt
+      try {
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        if (currentUser != null) {
+          final cloudSalt = currentUser.userMetadata?['master_pin_salt'] as String?;
+          if (cloudSalt == null || cloudSalt.isEmpty) {
+            await Supabase.instance.client.auth.updateUser(
+              UserAttributes(data: {'master_pin_salt': salt}),
+            );
+          }
+        }
+      } catch (_) {
+        // Ignore offline or uninitialized Supabase errors
+      }
 
       state = state.copyWith(
         status: AuthStatus.authenticated,
