@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/utils/service_brand_helper.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../auth/presentation/providers/supabase_auth_providers.dart';
+import '../../../settings/presentation/providers/settings_providers.dart';
+import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../data/models/vault_item.dart';
 import '../providers/vault_providers.dart';
 import '../widgets/password_generator_sheet.dart';
@@ -291,6 +295,16 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       );
 
       await ref.read(vaultNotifierProvider.notifier).saveItem(itemToSave);
+
+      // Auto-sync item to cloud if enabled and online
+      final authState = ref.read(authNotifierProvider);
+      final userState = ref.read(supabaseUserProvider);
+      final autoSyncEnabled = ref.read(settingsNotifierProvider).autoSyncEnabled;
+
+      if (autoSyncEnabled && !authState.isOfflineOnlyMode && userState.isAuthenticated) {
+        // Fire non-blocking asynchronous cloud sync
+        ref.read(syncNotifierProvider.notifier).sync();
+      }
 
       if (mounted) {
         Navigator.pop(context);

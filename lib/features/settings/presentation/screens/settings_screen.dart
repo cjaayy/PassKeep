@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../../vault/presentation/providers/vault_providers.dart';
+import '../providers/settings_providers.dart';
 
 /// Settings & Vault Management Screen
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -198,6 +199,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final authState = ref.watch(authNotifierProvider);
     final userState = ref.watch(supabaseUserProvider);
     final syncState = ref.watch(syncNotifierProvider);
+    final settingsState = ref.watch(settingsNotifierProvider);
 
     final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
 
@@ -241,6 +243,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     tooltip: 'Sign Out',
                     onPressed: _confirmSignOut,
                   ),
+                ),
+                const Divider(color: Color(0xFF334155), height: 1),
+                SwitchListTile(
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.sync_lock_rounded, color: Color(0xFF10B981)),
+                  ),
+                  title: const Text(
+                    'Auto-Sync Passwords',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Automatically upload new or updated items when online',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  value: settingsState.autoSyncEnabled,
+                  activeThumbColor: const Color(0xFF10B981),
+                  activeTrackColor: const Color(0xFF10B981).withValues(alpha: 0.3),
+                  inactiveThumbColor: const Color(0xFF64748B),
+                  inactiveTrackColor: const Color(0xFF334155),
+                  onChanged: (bool value) {
+                    ref.read(settingsNotifierProvider.notifier).setAutoSyncEnabled(value);
+                  },
                 ),
                 const Divider(color: Color(0xFF334155), height: 1),
                 ListTile(

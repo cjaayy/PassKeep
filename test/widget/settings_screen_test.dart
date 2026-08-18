@@ -1,10 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:passkeep/core/security/security_providers.dart';
 import 'package:passkeep/features/auth/presentation/providers/auth_providers.dart';
 import 'package:passkeep/features/auth/presentation/providers/supabase_auth_providers.dart';
 import 'package:passkeep/features/settings/presentation/screens/settings_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+
+class FakeSecureStorage extends Fake implements FlutterSecureStorage {
+  final Map<String, String> _data = {};
+
+  @override
+  Future<String?> read({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => _data[key];
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    if (value != null) {
+      _data[key] = value;
+    } else {
+      _data.remove(key);
+    }
+  }
+}
 
 class FakeSupabaseUserNotifier extends StateNotifier<SupabaseUserState>
     implements SupabaseUserNotifier {
@@ -54,6 +89,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          secureStorageProvider.overrideWithValue(FakeSecureStorage()),
           authNotifierProvider.overrideWith(
             (ref) => FakeAuthNotifier(
               const AuthState(
@@ -82,6 +118,7 @@ void main() {
     // Verify Account & Cloud Sync section is HIDDEN
     expect(find.text('ACCOUNT & CLOUD SYNC'), findsNothing);
     expect(find.text('Cloud Synchronization'), findsNothing);
+    expect(find.text('Auto-Sync Passwords'), findsNothing);
 
     // Verify other sections remain accessible
     expect(find.text('DATA TRANSFER & BACKUPS'), findsOneWidget);
@@ -89,7 +126,7 @@ void main() {
     expect(find.text('ABOUT PASSKEEP'), findsOneWidget);
   });
 
-  testWidgets('SettingsScreen renders Account & Cloud Sync when cloud account is connected',
+  testWidgets('SettingsScreen renders Account & Cloud Sync with Auto-Sync toggle when connected',
       (WidgetTester tester) async {
     final testUser = sb.User(
       id: 'test-user-id',
@@ -103,6 +140,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          secureStorageProvider.overrideWithValue(FakeSecureStorage()),
           authNotifierProvider.overrideWith(
             (ref) => FakeAuthNotifier(
               const AuthState(
@@ -129,5 +167,25 @@ void main() {
     expect(find.text('ACCOUNT & CLOUD SYNC'), findsOneWidget);
     expect(find.text('alex@passkeep.io'), findsOneWidget);
     expect(find.text('Cloud Synchronization'), findsOneWidget);
+    expect(find.text('Force Push to Cloud'), findsOneWidget);
+
+    // Verify Auto-Sync Passwords toggle is VISIBLE and switched on by default
+    expect(find.text('Auto-Sync Passwords'), findsOneWidget);
+    expect(
+      find.text('Automatically upload new or updated items when online'),
+      findsOneWidget,
+    );
+
+    final switchFinder = find.byType(Switch);
+    expect(switchFinder, findsOneWidget);
+    final switchWidget = tester.widget<Switch>(switchFinder);
+    expect(switchWidget.value, isTrue);
+
+    // Tap switch to toggle off
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    final toggledSwitch = tester.widget<Switch>(switchFinder);
+    expect(toggledSwitch.value, isFalse);
   });
 }

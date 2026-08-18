@@ -15,6 +15,9 @@ abstract final class StorageKeys {
   /// Secure Storage key for biometric auth token / state
   static const String biometricTokenKey = 'passkeep_biometric_token';
 
+  /// Secure Storage key for auto-sync enabled preference
+  static const String autoSyncEnabledKey = 'passkeep_auto_sync_enabled';
+
   /// Hive Type ID constants
   static const int vaultItemTypeId = 0;
 }
