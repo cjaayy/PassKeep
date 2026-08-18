@@ -15,6 +15,9 @@ abstract class IVaultRemoteDataSource {
 
   /// Soft deletes a remote vault item by setting `is_deleted = true`.
   Future<void> deleteRemoteItem(String id);
+
+  /// Hard deletes all remote vault items for the authenticated user.
+  Future<void> wipeRemoteVault();
 }
 
 /// Implementation of [IVaultRemoteDataSource] using Supabase.
@@ -87,6 +90,19 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
     } catch (e) {
       if (e is Failure) rethrow;
       throw SyncFailure('Failed to delete remote vault item ($id): ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> wipeRemoteVault() async {
+    try {
+      await _supabase
+          .from(_tableName)
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (e) {
+      if (e is Failure) rethrow;
+      throw SyncFailure('Failed to wipe remote vault: ${e.toString()}');
     }
   }
 }

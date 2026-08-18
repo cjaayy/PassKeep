@@ -24,6 +24,13 @@
     @io.hive.** *;
 }
 
+# PassKeep Model Serialization & Keep Rules
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+-keep class com.passkeep.passkeep.features.vault.data.models.** { *; }
+-keep class com.passkeep.passkeep.** { *; }
+
 # Android KeyStore & Cryptography
 -keepclassmembers class * extends java.security.KeyStore { *; }
 -keep class javax.crypto.** { *; }
@@ -37,4 +44,3 @@
 -dontwarn com.google.android.play.core.**
 -dontwarn io.flutter.embedding.engine.deferredcomponents.**
 -dontwarn io.flutter.embedding.android.FlutterPlayStoreSplitApplication
-

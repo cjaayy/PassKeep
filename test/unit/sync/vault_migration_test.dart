@@ -51,6 +51,11 @@ class FakeMigrationRemoteDataSource implements IVaultRemoteDataSource {
   Future<void> deleteRemoteItem(String id) async {
     remoteItems.remove(id);
   }
+
+  @override
+  Future<void> wipeRemoteVault() async {
+    remoteItems.clear();
+  }
 }
 
 void main() {

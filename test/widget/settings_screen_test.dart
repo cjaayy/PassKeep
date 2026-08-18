@@ -170,6 +170,7 @@ void main() {
     expect(find.text('alex@passkeep.io'), findsOneWidget);
     expect(find.text('Cloud Synchronization'), findsOneWidget);
     expect(find.text('Force Push to Cloud'), findsOneWidget);
+    expect(find.text('Wipe Remote & Re-sync'), findsOneWidget);
 
     // Verify Auto-Sync Passwords toggle is VISIBLE and switched on by default
     expect(find.text('Auto-Sync Passwords'), findsOneWidget);

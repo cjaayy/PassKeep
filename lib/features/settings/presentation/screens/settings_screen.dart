@@ -157,6 +157,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _handleWipeRemoteAndResync() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
+            SizedBox(width: 8),
+            Text('Wipe Remote Vault?', style: TextStyle(color: Colors.white, fontSize: 16)),
+          ],
+        ),
+        content: const Text(
+          'This will permanently delete all entries in your Supabase cloud database and replace them with your current local vault items. Useful if the remote vault was encrypted with an old Master PIN.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Wipe & Push', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      final result = await ref.read(syncNotifierProvider.notifier).wipeRemoteAndResync();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.isSuccess
+                  ? 'Remote database wiped. Pushed ${result.pushedCount} local items.'
+                  : result.errorMessage ?? 'Wipe & sync failed.',
+            ),
+            backgroundColor: result.isSuccess ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _confirmSignOut() async {
     final shouldSignOut = await showDialog<bool>(
       context: context,
@@ -364,6 +412,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     icon: const Icon(Icons.upload_rounded, size: 16),
                     label: const Text('Push', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     onPressed: syncState.isSyncing ? null : _handleForcePush,
+                  ),
+                ),
+                const Divider(color: Color(0xFF334155), height: 1),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFF87171)),
+                  ),
+                  title: const Text(
+                    'Wipe Remote & Re-sync',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: const Text(
+                    'Clear remote cloud vault and upload current local entries',
+                    style: TextStyle(color: Colors.white60, fontSize: 12),
+                  ),
+                  trailing: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E293B),
+                      foregroundColor: const Color(0xFFF87171),
+                      elevation: 0,
+                      side: const BorderSide(color: Color(0xFFEF4444), width: 1),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Wipe & Push', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: syncState.isSyncing ? null : _handleWipeRemoteAndResync,
                   ),
                 ),
               ],

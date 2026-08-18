@@ -167,6 +167,33 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
     return result;
   }
+
+  /// Wipes remote cloud database and re-uploads all local records to Supabase.
+  Future<SyncResult> wipeRemoteAndResync() async {
+    state = state.copyWith(isSyncing: true, errorMessage: null);
+
+    final result = await _syncService.wipeRemoteAndResync();
+
+    if (result.isSuccess) {
+      state = state.copyWith(
+        isSyncing: false,
+        lastSyncedAt: result.syncedAt,
+        lastSyncedCount: result.totalChanges,
+        isSuccess: true,
+        errorMessage: null,
+      );
+
+      _ref?.read(vaultNotifierProvider.notifier).loadVaultItems();
+    } else {
+      state = state.copyWith(
+        isSyncing: false,
+        isSuccess: false,
+        errorMessage: result.errorMessage,
+      );
+    }
+
+    return result;
+  }
 }
 
 /// Provider for [SyncNotifier]

@@ -61,6 +61,12 @@ class FakeSyncRemoteDataSource implements IVaultRemoteDataSource {
     if (shouldThrow) throw const SyncFailure('Remote delete error');
     remoteItems.remove(id);
   }
+
+  @override
+  Future<void> wipeRemoteVault() async {
+    if (shouldThrow) throw const SyncFailure('Remote wipe error');
+    remoteItems.clear();
+  }
 }
 
 void main() {
@@ -285,6 +291,40 @@ void main() {
 
       expect(result.isSuccess, isFalse);
       expect(result.errorMessage, contains('Network connection failed'));
+    });
+
+    test('wipeRemoteAndResync clears remote items and uploads local items', () async {
+      // Remote has old corrupted item
+      remoteDataSource.remoteItems['corrupted-old'] = VaultItem(
+        id: 'corrupted-old',
+        title: 'Corrupted Service',
+        usernameEncrypted: 'bad_enc',
+        passwordEncrypted: 'bad_enc',
+        iv: 'bad_iv',
+        category: 'General',
+        updatedAt: DateTime.now(),
+      );
+
+      // Local has clean new item
+      final localItem = VaultItem(
+        id: 'clean-new',
+        title: 'Clean Service',
+        usernameEncrypted: 'good_user',
+        passwordEncrypted: 'good_pass',
+        iv: 'good_iv',
+        category: 'General',
+        updatedAt: DateTime.now(),
+      );
+      await localDataSource.saveVaultItem(localItem);
+
+      final result = await syncService.wipeRemoteAndResync();
+
+      expect(result.isSuccess, isTrue);
+      expect(result.pushedCount, 1);
+      // Corrupted old item is gone from remote
+      expect(remoteDataSource.remoteItems.containsKey('corrupted-old'), isFalse);
+      // Clean new item is in remote
+      expect(remoteDataSource.remoteItems.containsKey('clean-new'), isTrue);
     });
   });
 }

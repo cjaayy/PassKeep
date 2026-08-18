@@ -192,4 +192,40 @@ class VaultSyncService {
       return SyncResult.failure('Vault migration failed: ${e.toString()}');
     }
   }
+
+  /// Wipes all remote cloud items and re-uploads all local items to cloud database.
+  /// Used if the remote database was wiped or user intentionally reset their Master PIN.
+  Future<SyncResult> wipeRemoteAndResync() async {
+    try {
+      // 1. Wipe remote database records for this user
+      await _remoteDataSource.wipeRemoteVault();
+
+      // 2. Mark local records as unsynced
+      final localItems = await _localDataSource.getAllVaultItems();
+      for (final item in localItems) {
+        await _localDataSource.saveVaultItem(item.copyWith(isSynced: false));
+      }
+
+      // 3. Bulk push local items to remote database
+      if (localItems.isNotEmpty) {
+        await _remoteDataSource.upsertRemoteItems(localItems);
+        for (final item in localItems) {
+          await _localDataSource.saveVaultItem(item.copyWith(isSynced: true));
+        }
+      }
+
+      return SyncResult(
+        pushedCount: localItems.length,
+        pulledCount: 0,
+        conflictResolvedCount: 0,
+        syncedAt: DateTime.now(),
+        isSuccess: true,
+      );
+    } catch (e) {
+      if (e is Failure) {
+        return SyncResult.failure(e.message);
+      }
+      return SyncResult.failure('Wipe & Re-sync failed: ${e.toString()}');
+    }
+  }
 }
