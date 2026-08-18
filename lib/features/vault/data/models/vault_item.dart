@@ -82,6 +82,26 @@ class VaultItem extends HiveObject {
     );
   }
 
+  /// Returns the primary display identifier for this vault item:
+  /// 1. The decrypted username (if provided and non-empty)
+  /// 2. The account / phone number (if present and non-empty)
+  /// 3. A masked placeholder if an encrypted username is stored
+  /// 4. Fallback to 'No identifier'
+  String getPrimaryIdentifier({String? decryptedUsername}) {
+    final user = decryptedUsername?.trim() ?? '';
+    if (user.isNotEmpty) {
+      return user;
+    }
+    final acc = accountNumber?.trim() ?? '';
+    if (acc.isNotEmpty) {
+      return acc;
+    }
+    if (usernameEncrypted.isNotEmpty) {
+      return '••••••••';
+    }
+    return 'No identifier';
+  }
+
   /// Converts this [VaultItem] into a Map for local serialization / JSON backup.
   Map<String, dynamic> toMap() {
     return {

@@ -22,7 +22,14 @@ class FakeLocalDataSource implements IVaultLocalDataSource {
       items.firstWhere((i) => i.id == id);
 
   @override
-  Future<void> saveVaultItem(VaultItem item) async => items.add(item);
+  Future<void> saveVaultItem(VaultItem item) async {
+    final idx = items.indexWhere((i) => i.id == item.id);
+    if (idx >= 0) {
+      items[idx] = item;
+    } else {
+      items.add(item);
+    }
+  }
 
   @override
   Future<void> deleteVaultItem(String id) async => items.removeWhere((i) => i.id == id);
@@ -113,7 +120,7 @@ void main() {
     expect(savedItem.category, 'Work');
   });
 
-  testWidgets('AddEditVaultScreen saves item with only Account/Phone Number (e-wallet/banking)',
+  testWidgets('AddEditVaultScreen encrypts account number into usernameEncrypted when email is empty',
       (WidgetTester tester) async {
     final fakeLocal = FakeLocalDataSource();
     final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
@@ -155,11 +162,68 @@ void main() {
     await tester.tap(find.byTooltip('Save Item'));
     await tester.pumpAndSettle();
 
-    // Verify saved item without username
+    // Verify saved item
     expect(fakeLocal.items.length, 1);
     final savedItem = fakeLocal.items.first;
-    expect(savedItem.category, 'General');
     expect(savedItem.accountNumber, '09189876543');
+
+    // Verify usernameEncrypted holds the encrypted account number (not empty string)
+    expect(savedItem.usernameEncrypted.isNotEmpty, true);
+    final decryptedUser = encryptionService.decrypt(
+      cipherTextBase64: savedItem.usernameEncrypted,
+      ivBase64: savedItem.iv,
+    );
+    expect(decryptedUser, '09189876543');
+    expect(savedItem.getPrimaryIdentifier(decryptedUsername: decryptedUser), '09189876543');
+  });
+
+  testWidgets('AddEditVaultScreen in edit mode correctly populates account number field',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeLocalDataSource();
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    final userEnc = encryptionService.encrypt('09189876543');
+    final passEnc = encryptionService.encrypt('654321', customIvBase64: userEnc.ivBase64);
+
+    final existingItem = VaultItem(
+      id: 'gcash-item-1',
+      title: 'GCash',
+      usernameEncrypted: userEnc.cipherTextBase64,
+      passwordEncrypted: passEnc.cipherTextBase64,
+      iv: userEnc.ivBase64,
+      category: 'Finance',
+      accountNumber: '09189876543',
+      updatedAt: DateTime.now(),
+    );
+
+    fakeLocal.items.add(existingItem);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: MaterialApp(
+          home: AddEditVaultScreen(existingItem: existingItem),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify account number field contains 09189876543
+    expect(find.text('09189876543'), findsOneWidget);
+
+    // Verify username field is empty
+    final usernameFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'name@example.com',
+    );
+    final usernameField = tester.widget<TextField>(usernameFinder);
+    expect(usernameField.controller?.text, '');
   });
 
   testWidgets('AddEditVaultScreen rejects submission if both Username and Account Number are empty',

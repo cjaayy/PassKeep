@@ -143,8 +143,6 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       _customCategoryController = TextEditingController();
     }
 
-    _accountNumberController =
-        TextEditingController(text: widget.existingItem?.accountNumber ?? '');
     _notesController =
         TextEditingController(text: widget.existingItem?.notes ?? '');
 
@@ -155,19 +153,47 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         final plainUser = encryptionService.decrypt(
           cipherTextBase64: widget.existingItem!.usernameEncrypted,
           ivBase64: widget.existingItem!.iv,
-        );
+        ).trim();
         final plainPass = encryptionService.decrypt(
           cipherTextBase64: widget.existingItem!.passwordEncrypted,
           ivBase64: widget.existingItem!.iv,
         );
-        _usernameController = TextEditingController(text: plainUser);
+
+        final existingAccount = widget.existingItem?.accountNumber?.trim() ?? '';
+
+        if (existingAccount.isNotEmpty) {
+          if (plainUser == existingAccount) {
+            // Saved with phone/account number only
+            _usernameController = TextEditingController(text: '');
+            _accountNumberController = TextEditingController(text: existingAccount);
+          } else {
+            // Saved with both username and account number
+            _usernameController = TextEditingController(text: plainUser);
+            _accountNumberController = TextEditingController(text: existingAccount);
+          }
+        } else {
+          // If no separate accountNumber was recorded, check if plainUser is a phone/numeric account
+          final isPhoneOrAccountNumber =
+              RegExp(r'^[0-9+\s\-()]+$').hasMatch(plainUser) && !plainUser.contains('@');
+          if (isPhoneOrAccountNumber) {
+            _usernameController = TextEditingController(text: '');
+            _accountNumberController = TextEditingController(text: plainUser);
+          } else {
+            _usernameController = TextEditingController(text: plainUser);
+            _accountNumberController = TextEditingController(text: '');
+          }
+        }
+
         _passwordController = TextEditingController(text: plainPass);
       } catch (_) {
         _usernameController = TextEditingController();
+        _accountNumberController =
+            TextEditingController(text: widget.existingItem?.accountNumber ?? '');
         _passwordController = TextEditingController();
       }
     } else {
       _usernameController = TextEditingController();
+      _accountNumberController = TextEditingController();
       _passwordController = TextEditingController();
     }
   }
@@ -231,8 +257,11 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
       final encryptionService = ref.read(encryptionServiceProvider);
       final itemIv = encryptionService.generateRandomIv();
 
+      // Ensure whichever identifier is present gets encrypted into usernameEncrypted
+      final primaryIdentifier = userTrimmed.isNotEmpty ? userTrimmed : accountTrimmed;
+
       final encUser = encryptionService.encrypt(
-        userTrimmed,
+        primaryIdentifier,
         customIvBase64: itemIv,
       );
       final encPass = encryptionService.encrypt(
@@ -258,7 +287,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         isSynced: false, // Mark unsynced so bidirectional sync engine pushes it
         updatedAt: DateTime.now(),
-        accountNumber: accountTrimmed.isEmpty ? null : accountTrimmed,
+        accountNumber: accountTrimmed.isNotEmpty ? accountTrimmed : null,
       );
 
       await ref.read(vaultNotifierProvider.notifier).saveItem(itemToSave);

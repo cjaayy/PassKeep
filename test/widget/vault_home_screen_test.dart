@@ -239,4 +239,52 @@ void main() {
     expect(find.byIcon(Icons.account_circle_outlined), findsNWidgets(2));
     expect(find.byIcon(Icons.copy_rounded), findsNWidgets(2));
   });
+
+  testWidgets('VaultHomeScreen displays Account / Phone Number as subtitle when username is empty',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeWidgetLocalDataSource();
+    fakeLocal.items.add(
+      VaultItem(
+        id: 'gcash-1',
+        title: 'GCash',
+        usernameEncrypted: '',
+        passwordEncrypted: 'enc_pass',
+        iv: 'iv_val',
+        category: 'Finance',
+        accountNumber: '09171234567',
+        updatedAt: DateTime.now(),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          authNotifierProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              const AuthState(
+                status: AuthStatus.authenticated,
+                isOfflineOnlyMode: true,
+              ),
+            ),
+          ),
+          supabaseUserProvider.overrideWith(
+            (ref) => FakeSupabaseUserNotifier(
+              const SupabaseUserState.initial(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          home: VaultHomeScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify Title and Account Number Subtitle
+    expect(find.text('GCash'), findsOneWidget);
+    expect(find.text('09171234567'), findsOneWidget);
+    expect(find.text('No identifier'), findsNothing);
+  });
 }

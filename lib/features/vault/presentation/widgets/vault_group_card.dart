@@ -262,11 +262,7 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                   itemBuilder: (context, index) {
                     final subItem = widget.group.items[index];
                     final username = _getDecryptedUsername(subItem);
-                    final displaySubtitle = username.isNotEmpty
-                        ? username
-                        : (subItem.accountNumber != null && subItem.accountNumber!.isNotEmpty
-                            ? subItem.accountNumber!
-                            : (subItem.usernameEncrypted.isNotEmpty ? '••••••••' : 'No identifier'));
+                    final displaySubtitle = subItem.getPrimaryIdentifier(decryptedUsername: username);
 
                     return InkWell(
                       onTap: () => widget.onItemTap(subItem),

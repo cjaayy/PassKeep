@@ -70,11 +70,7 @@ class VaultItemCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final username = _getDecryptedUsername(ref);
-    final displaySubtitle = username.isNotEmpty
-        ? username
-        : (item.accountNumber != null && item.accountNumber!.isNotEmpty
-            ? item.accountNumber!
-            : (item.usernameEncrypted.isNotEmpty ? '••••••••' : 'No identifier'));
+    final displaySubtitle = item.getPrimaryIdentifier(decryptedUsername: username);
 
     final brandIcon = ServiceBrandHelper.getIconForService(
       item.title,

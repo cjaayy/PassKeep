@@ -301,32 +301,53 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   ),
                 ),
               ] else ...[
-                // Username field
-                _buildFieldCard(
-                  title: 'Username / Email',
-                  content: _plainUsername,
-                  trailing: IconButton(
-                    icon: const Icon(Icons.copy_rounded, color: Color(0xFF10B981), size: 20),
-                    onPressed: _copyUsername,
-                    tooltip: 'Copy Username',
-                  ),
-                ),
-                const SizedBox(height: 14),
+                // Dynamic Identifier fields
+                () {
+                  final rawAccount = widget.item.accountNumber?.trim() ?? '';
+                  final rawUser = _plainUsername.trim();
 
-                // Account / Phone Number field (if present)
-                if (widget.item.accountNumber != null && widget.item.accountNumber!.isNotEmpty) ...[
-                  _buildFieldCard(
-                    title: 'Account / Phone Number',
-                    content: widget.item.accountNumber!,
-                    isMonospace: true,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.copy_rounded, color: Color(0xFF10B981), size: 20),
-                      onPressed: () => _copyAccountNumber(widget.item.accountNumber!),
-                      tooltip: 'Copy Account Number',
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
+                  final hasExplicitAccount = rawAccount.isNotEmpty;
+                  final isUserSameAsAccount = hasExplicitAccount && rawUser == rawAccount;
+                  final isUserNumericPhone =
+                      RegExp(r'^[0-9+\s\-()]+$').hasMatch(rawUser) && !rawUser.contains('@');
+
+                  final shouldShowUsername = rawUser.isNotEmpty &&
+                      !isUserSameAsAccount &&
+                      (!isUserNumericPhone || hasExplicitAccount);
+                  final shouldShowAccount =
+                      hasExplicitAccount || (rawUser.isNotEmpty && isUserNumericPhone);
+                  final displayAccountNumber = hasExplicitAccount ? rawAccount : rawUser;
+
+                  return Column(
+                    children: [
+                      if (shouldShowUsername) ...[
+                        _buildFieldCard(
+                          title: 'Username / Email',
+                          content: rawUser,
+                          trailing: IconButton(
+                            icon: const Icon(Icons.copy_rounded, color: Color(0xFF10B981), size: 20),
+                            onPressed: _copyUsername,
+                            tooltip: 'Copy Username',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      if (shouldShowAccount) ...[
+                        _buildFieldCard(
+                          title: 'Account / Phone Number',
+                          content: displayAccountNumber,
+                          isMonospace: true,
+                          trailing: IconButton(
+                            icon: const Icon(Icons.copy_rounded, color: Color(0xFF10B981), size: 20),
+                            onPressed: () => _copyAccountNumber(displayAccountNumber),
+                            tooltip: 'Copy Account Number',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                    ],
+                  );
+                }(),
 
                 // Password field
                 _buildFieldCard(
