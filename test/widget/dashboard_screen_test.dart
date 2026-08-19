@@ -57,7 +57,7 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 }
 
 void main() {
-  testWidgets('DashboardScreen renders summary counts, status, and quick actions',
+  testWidgets('DashboardScreen starts directly with VAULT OVERVIEW and renders quick actions without duplicate header',
       (WidgetTester tester) async {
     final fakeLocal = FakeLocalDataSource();
     fakeLocal.items.addAll([
@@ -119,9 +119,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify Title & Subtitle
-    expect(find.text('PassKeep'), findsOneWidget);
-    expect(find.text('PassKeep Dashboard'), findsOneWidget);
+    // Verify duplicate header banner is removed
+    expect(find.text('PassKeep Dashboard'), findsNothing);
 
     // Verify Vault Overview counts (Total = 2, Passwords = 1, Cards = 1)
     expect(find.text('VAULT OVERVIEW'), findsOneWidget);
@@ -135,6 +134,9 @@ void main() {
     expect(find.text('New Password'), findsOneWidget);
     expect(find.text('New Payment Card'), findsOneWidget);
     expect(find.text('Password Generator'), findsOneWidget);
+
+    // Verify RefreshIndicator exists
+    expect(find.byType(RefreshIndicator), findsOneWidget);
 
     // Test shortcut taps
     await tester.tap(find.text('Passwords'));

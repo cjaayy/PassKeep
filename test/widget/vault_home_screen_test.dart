@@ -121,8 +121,11 @@ void main() {
 
     // Verify App Bar & Brand on Dashboard Tab 0
     expect(find.text('PassKeep'), findsWidgets);
-    expect(find.text('PassKeep Dashboard'), findsOneWidget);
+    expect(find.text('PassKeep Dashboard'), findsNothing);
     expect(find.text('VAULT OVERVIEW'), findsOneWidget);
+
+    // Verify Refresh Vault action button is VISIBLE
+    expect(find.byTooltip('Refresh Vault'), findsOneWidget);
 
     // Verify Cloud Sync button is HIDDEN
     expect(find.byTooltip('Sync with Cloud'), findsNothing);

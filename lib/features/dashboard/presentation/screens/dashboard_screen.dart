@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
+import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../../vault/data/models/vault_item.dart';
 import '../../../vault/presentation/providers/vault_providers.dart';
 import '../../../vault/presentation/screens/add_edit_vault_screen.dart';
@@ -39,58 +40,22 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: scaffoldBg,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // PassKeep Dashboard Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: inputFill,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.shield_rounded,
-                      size: 28,
-                      color: textPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'PassKeep',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: textPrimary,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'PassKeep Dashboard',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: textMuted,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Placeholder Dashboard Overview Card
-              Container(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await ref.read(vaultNotifierProvider.notifier).loadVaultItems();
+            final isCloudSyncEnabled = !authState.isOfflineOnlyMode && userState.isAuthenticated;
+            if (isCloudSyncEnabled) {
+              await ref.read(syncNotifierProvider.notifier).sync();
+            }
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Vault Overview Card
+                Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20.0),
                 decoration: BoxDecoration(
@@ -312,8 +277,9 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildActionTile({
     required BuildContext context,

@@ -326,6 +326,17 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                 ],
               ),
               actions: [
+                // Refresh Vault Action
+                IconButton(
+                  icon: Icon(Icons.refresh_rounded, color: textMuted),
+                  tooltip: 'Refresh Vault',
+                  onPressed: () async {
+                    await ref.read(vaultNotifierProvider.notifier).loadVaultItems();
+                    if (isCloudSyncEnabled) {
+                      _handleSync();
+                    }
+                  },
+                ),
                 // Sync Button
                 if (isCloudSyncEnabled)
                   RotationTransition(

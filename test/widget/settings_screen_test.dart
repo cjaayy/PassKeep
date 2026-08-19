@@ -132,9 +132,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SECURITY & ACCESS'), findsOneWidget);
     expect(find.text('ABOUT PASSKEEP'), findsOneWidget);
+    expect(find.text('App Version'), findsOneWidget);
+    expect(find.text('1.0.0+1'), findsOneWidget);
+    // Redundant about tiles are removed
+    expect(find.text('Architecture'), findsNothing);
+    expect(find.text('Encryption Standard'), findsNothing);
   });
 
-  testWidgets('SettingsScreen renders Account & Cloud Sync with Auto-Sync toggle when connected',
+  testWidgets('SettingsScreen streamlines Account & Cloud Sync without Force Push tile',
       (WidgetTester tester) async {
     final testUser = sb.User(
       id: 'test-user-id',
@@ -175,8 +180,10 @@ void main() {
     expect(find.text('ACCOUNT & CLOUD SYNC'), findsOneWidget);
     expect(find.text('alex@passkeep.io'), findsOneWidget);
     expect(find.text('Cloud Synchronization'), findsOneWidget);
-    expect(find.text('Force Push to Cloud'), findsOneWidget);
     expect(find.text('Wipe Remote & Re-sync'), findsOneWidget);
+
+    // Verify Force Push tile is REMOVED
+    expect(find.text('Force Push to Cloud'), findsNothing);
 
     // Verify Auto-Sync Passwords toggle is VISIBLE and switched on by default
     expect(find.text('Auto-Sync Passwords'), findsOneWidget);
@@ -196,5 +203,106 @@ void main() {
 
     final toggledSwitch = tester.widget<Switch>(switchFinder);
     expect(toggledSwitch.value, isFalse);
+  });
+
+  testWidgets('WipeRemoteConfirmationDialog counts down 10s before enabling confirm button',
+      (WidgetTester tester) async {
+    bool? confirmed;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                confirmed = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const WipeRemoteConfirmationDialog(
+                    initialCountdownSeconds: 3, // Use 3s for fast, reliable unit test
+                  ),
+                );
+              },
+              child: const Text('Open Wipe Dialog'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Open dialog
+    await tester.tap(find.text('Open Wipe Dialog'));
+    await tester.pump();
+
+    // Verify dialog content is visible
+    expect(find.text('Wipe Remote Vault?'), findsOneWidget);
+    expect(find.text('Confirm Wipe (3s)'), findsOneWidget);
+
+    // Verify confirm button is initially DISABLED
+    final confirmButtonFinder = find.widgetWithText(ElevatedButton, 'Confirm Wipe (3s)');
+    final confirmButton = tester.widget<ElevatedButton>(confirmButtonFinder);
+    expect(confirmButton.onPressed, isNull);
+
+    // Advance 1 second
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Confirm Wipe (2s)'), findsOneWidget);
+
+    // Advance 1 second
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Confirm Wipe (1s)'), findsOneWidget);
+
+    // Advance 1 second (countdown finishes)
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Confirm Wipe & Re-sync'), findsOneWidget);
+
+    // Verify confirm button is now ENABLED
+    final enabledButtonFinder = find.widgetWithText(ElevatedButton, 'Confirm Wipe & Re-sync');
+    final enabledButton = tester.widget<ElevatedButton>(enabledButtonFinder);
+    expect(enabledButton.onPressed, isNotNull);
+
+    // Tap confirm button
+    await tester.tap(enabledButtonFinder);
+    await tester.pumpAndSettle();
+
+    expect(confirmed, isTrue);
+  });
+
+  testWidgets('WipeRemoteConfirmationDialog cancel button dismisses dialog immediately',
+      (WidgetTester tester) async {
+    bool? confirmed;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () async {
+                confirmed = await showDialog<bool>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const WipeRemoteConfirmationDialog(
+                    initialCountdownSeconds: 10,
+                  ),
+                );
+              },
+              child: const Text('Open Wipe Dialog'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Open dialog
+    await tester.tap(find.text('Open Wipe Dialog'));
+    await tester.pump();
+
+    expect(find.text('Wipe Remote Vault?'), findsOneWidget);
+
+    // Tap Cancel button immediately while countdown is active
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(confirmed, isFalse);
+    expect(find.text('Wipe Remote Vault?'), findsNothing);
   });
 }

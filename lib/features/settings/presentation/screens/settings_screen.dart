@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/services/backup_service.dart';
@@ -110,119 +111,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  Future<void> _handleForcePush() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        title: Text(
-          'Force Push to Cloud?',
-          style: TextStyle(
-            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          'This will upload all local encrypted vault items and overwrite the cloud database.',
-          style: TextStyle(
-            color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary,
-              foregroundColor: isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary,
-              elevation: 0,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Force Push'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true) {
-      final result = await ref.read(syncNotifierProvider.notifier).forceUploadLocalVault();
-      if (mounted) {
-        if (result.isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Force push complete. ${result.pushedCount} items uploaded to cloud.'),
-              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result.errorMessage ?? 'Force push failed.'),
-              backgroundColor: AppTheme.darkDestructive,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    }
-  }
-
   Future<void> _handleWipeRemoteAndResync() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-        title: Row(
-          children: [
-            const Icon(Icons.warning_amber_rounded, color: AppTheme.darkDestructive),
-            const SizedBox(width: 8),
-            Text(
-              'Wipe Remote Vault?',
-              style: TextStyle(
-                color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'This will permanently delete all entries in your Supabase cloud database and replace them with your current local vault items.',
-          style: TextStyle(
-            color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? const Color(0xFF3F3F46) : const Color(0xFFE4E4E7),
-              foregroundColor: AppTheme.darkDestructive,
-              elevation: 0,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Wipe & Push'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) => const WipeRemoteConfirmationDialog(),
     );
 
     if (confirm == true && mounted) {
@@ -563,37 +457,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: badgeBgColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(Icons.cloud_upload_rounded, color: primaryTextColor),
-                  ),
-                  title: Text(
-                    'Force Push to Cloud',
-                    style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Upload & overwrite all local items to cloud database',
-                    style: TextStyle(color: mutedTextColor, fontSize: 12),
-                  ),
-                  trailing: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-                      foregroundColor: primaryTextColor,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    icon: const Icon(Icons.upload_rounded, size: 16),
-                    label: const Text('Push', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    onPressed: syncState.isSyncing ? null : _handleForcePush,
-                  ),
-                ),
-                Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
                       color: isDark
                           ? AppTheme.darkDestructive.withValues(alpha: 0.15)
                           : AppTheme.lightDestructive.withValues(alpha: 0.15),
@@ -786,24 +649,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Section: About & Security Specs
+          // Section: About PassKeep
           _buildSectionHeader('About PassKeep'),
           _buildCard(
             children: [
               ListTile(
-                leading: Icon(Icons.shield_outlined, color: primaryTextColor),
-                title: Text('Architecture', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
-                subtitle: Text('Zero-Knowledge Client-Side Encryption', style: TextStyle(color: mutedTextColor, fontSize: 12)),
-              ),
-              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
-              ListTile(
-                leading: Icon(Icons.enhanced_encryption_rounded, color: primaryTextColor),
-                title: Text('Encryption Standard', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
-                subtitle: Text('AES-256-CBC with PKCS7 & PBKDF2 (100k rounds)', style: TextStyle(color: mutedTextColor, fontSize: 12)),
-              ),
-              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
-              ListTile(
-                leading: Icon(Icons.info_outline_rounded, color: mutedTextColor),
+                leading: Icon(Icons.info_outline_rounded, color: primaryTextColor),
                 title: Text('App Version', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
                 trailing: Text('1.0.0+1', style: TextStyle(color: mutedTextColor, fontWeight: FontWeight.w600)),
               ),
@@ -893,6 +744,174 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: children,
         ),
       ),
+    );
+  }
+}
+
+/// Safety confirmation dialog with a mandatory 10-second countdown timer.
+class WipeRemoteConfirmationDialog extends StatefulWidget {
+  final int initialCountdownSeconds;
+
+  const WipeRemoteConfirmationDialog({
+    super.key,
+    this.initialCountdownSeconds = 10,
+  });
+
+  @override
+  State<WipeRemoteConfirmationDialog> createState() =>
+      _WipeRemoteConfirmationDialogState();
+}
+
+class _WipeRemoteConfirmationDialogState
+    extends State<WipeRemoteConfirmationDialog> {
+  Timer? _timer;
+  late int _secondsRemaining;
+
+  @override
+  void initState() {
+    super.initState();
+    _secondsRemaining = widget.initialCountdownSeconds;
+    if (_secondsRemaining > 0) {
+      _startCountdown();
+    }
+  }
+
+  void _startCountdown() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 1) {
+        if (mounted) {
+          setState(() {
+            _secondsRemaining--;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _secondsRemaining = 0;
+          });
+        }
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
+    final isCountdownActive = _secondsRemaining > 0;
+
+    return AlertDialog(
+      backgroundColor: surfaceColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppTheme.darkDestructive, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Wipe Remote Vault?',
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This action will permanently delete ALL remote vault items stored in your Supabase cloud database, and re-upload your current local decrypted items as a fresh baseline.',
+            style: TextStyle(
+              color: textMuted,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppTheme.darkDestructive.withValues(alpha: 0.1)
+                  : AppTheme.lightDestructive.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.timer_outlined,
+                  size: 18,
+                  color: isCountdownActive ? AppTheme.darkDestructive : textPrimary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isCountdownActive
+                        ? 'Safety delay active: $_secondsRemaining second${_secondsRemaining == 1 ? '' : 's'}'
+                        : 'Safety delay elapsed. Ready to confirm.',
+                    style: TextStyle(
+                      color: isCountdownActive ? AppTheme.darkDestructive : textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: textMuted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isCountdownActive
+                ? (isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7))
+                : AppTheme.darkDestructive,
+            foregroundColor: isCountdownActive
+                ? textMuted
+                : Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          onPressed: isCountdownActive
+              ? null
+              : () => Navigator.pop(context, true),
+          child: Text(
+            isCountdownActive
+                ? 'Confirm Wipe (${_secondsRemaining}s)'
+                : 'Confirm Wipe & Re-sync',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
