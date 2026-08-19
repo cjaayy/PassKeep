@@ -66,6 +66,9 @@ class VaultItem extends HiveObject {
   @HiveField(15)
   final String? pinEncrypted;
 
+  @HiveField(16)
+  final String? qrCodeBase64;
+
   VaultItem({
     required this.id,
     required this.title,
@@ -83,10 +86,12 @@ class VaultItem extends HiveObject {
     this.email,
     this.phoneNumber,
     this.pinEncrypted,
+    this.qrCodeBase64,
   });
 
   bool get isCard => type == 'card';
   bool get isLogin => type == 'login';
+  bool get hasQrCode => qrCodeBase64 != null && qrCodeBase64!.isNotEmpty;
 
   /// Creates a copy of this [VaultItem] with updated properties.
   VaultItem copyWith({
@@ -112,6 +117,8 @@ class VaultItem extends HiveObject {
     bool clearPhoneNumber = false,
     String? pinEncrypted,
     bool clearPinEncrypted = false,
+    String? qrCodeBase64,
+    bool clearQrCode = false,
   }) {
     return VaultItem(
       id: id ?? this.id,
@@ -130,6 +137,7 @@ class VaultItem extends HiveObject {
       email: clearEmail ? null : (email ?? this.email),
       phoneNumber: clearPhoneNumber ? null : (phoneNumber ?? this.phoneNumber),
       pinEncrypted: clearPinEncrypted ? null : (pinEncrypted ?? this.pinEncrypted),
+      qrCodeBase64: clearQrCode ? null : (qrCodeBase64 ?? this.qrCodeBase64),
     );
   }
 
@@ -176,6 +184,7 @@ class VaultItem extends HiveObject {
       'username_encrypted': usernameEncrypted,
       'password_encrypted': passwordEncrypted,
       'pin_encrypted': pinEncrypted,
+      'qr_code_base64': qrCodeBase64,
       'iv': iv,
       'category': category,
       'notes': notes,
@@ -198,6 +207,7 @@ class VaultItem extends HiveObject {
       'username_enc': usernameEncrypted,
       'password_enc': passwordEncrypted,
       'pin_enc': pinEncrypted,
+      'qr_code_enc': qrCodeBase64,
       'iv': iv,
       'category': category,
       'notes': notes,
@@ -228,6 +238,9 @@ class VaultItem extends HiveObject {
       pinEncrypted: (map['pin_enc'] ??
           map['pin_encrypted'] ??
           map['pinEncrypted']) as String?,
+      qrCodeBase64: (map['qr_code_enc'] ??
+          map['qr_code_base64'] ??
+          map['qrCodeBase64']) as String?,
       iv: map['iv'] as String,
       category: (map['category'] as String?) ?? 'General',
       notes: map['notes'] as String?,
@@ -270,7 +283,8 @@ class VaultItem extends HiveObject {
         other.username == username &&
         other.email == email &&
         other.phoneNumber == phoneNumber &&
-        other.pinEncrypted == pinEncrypted;
+        other.pinEncrypted == pinEncrypted &&
+        other.qrCodeBase64 == qrCodeBase64;
   }
 
   @override
@@ -290,6 +304,7 @@ class VaultItem extends HiveObject {
         username.hashCode ^
         email.hashCode ^
         phoneNumber.hashCode ^
-        pinEncrypted.hashCode;
+        pinEncrypted.hashCode ^
+        qrCodeBase64.hashCode;
   }
 }

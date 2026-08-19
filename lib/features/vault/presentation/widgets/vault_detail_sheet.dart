@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
@@ -245,6 +246,165 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
         ),
       );
     }
+  }
+
+  void _openFullScreenQrDialog(String qrCodeBase64) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.item.title,
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close_rounded, color: textMuted),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(
+                    base64Decode(qrCodeBase64),
+                    fit: BoxFit.contain,
+                    width: 240,
+                    height: 240,
+                    errorBuilder: (context, error, stackTrace) => const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.broken_image_rounded, size: 48, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text('Invalid QR Code image', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Scan with GCash, Maya, or any banking app',
+                style: TextStyle(
+                  color: textMuted,
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQrCodePreview(String qrCodeBase64) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
+    return InkWell(
+      onTap: () => _openFullScreenQrDialog(qrCodeBase64),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: inputFill,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.memory(
+                  base64Decode(qrCodeBase64),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Icon(
+                    Icons.qr_code_2_rounded,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'E-Wallet / Bank QR Code',
+                    style: TextStyle(
+                      color: textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tap to enlarge & scan',
+                    style: TextStyle(
+                      color: textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.fullscreen_rounded,
+              color: textMuted,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmDelete() async {
@@ -861,6 +1021,12 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   const SizedBox(height: 14),
                 ],
 
+                // QR Code Field (Payment Card)
+                if (widget.item.qrCodeBase64 != null && widget.item.qrCodeBase64!.isNotEmpty) ...[
+                  _buildQrCodePreview(widget.item.qrCodeBase64!),
+                  const SizedBox(height: 14),
+                ],
+
                 // Notes Field
                 if (widget.item.notes != null && widget.item.notes!.isNotEmpty) ...[
                   _buildFieldCard(
@@ -1015,6 +1181,12 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   const SizedBox(height: 14),
                 ],
                 const SizedBox(height: 14),
+
+                // QR Code Field (Login / E-Wallet)
+                if (widget.item.qrCodeBase64 != null && widget.item.qrCodeBase64!.isNotEmpty) ...[
+                  _buildQrCodePreview(widget.item.qrCodeBase64!),
+                  const SizedBox(height: 14),
+                ],
 
                 // Notes Field
                 if (widget.item.notes != null && widget.item.notes!.isNotEmpty) ...[

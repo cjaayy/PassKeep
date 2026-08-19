@@ -213,4 +213,60 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('123'), findsOneWidget);
   });
+
+  testWidgets('VaultDetailSheet renders QR Code preview and opens full-screen dialog on tap',
+      (WidgetTester tester) async {
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    final userEnc = encryptionService.encrypt('09171234567');
+    final passEnc = encryptionService.encrypt('123456', customIvBase64: userEnc.ivBase64);
+
+    const testQrBase64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+    final qrItem = VaultItem(
+      id: 'maya-qr-1',
+      title: 'Maya QR Ph',
+      usernameEncrypted: userEnc.cipherTextBase64,
+      passwordEncrypted: passEnc.cipherTextBase64,
+      iv: userEnc.ivBase64,
+      category: 'Finance',
+      accountNumber: '09171234567',
+      qrCodeBase64: testQrBase64,
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: VaultDetailSheet(item: qrItem),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify QR Code tile is present
+    expect(find.text('E-Wallet / Bank QR Code'), findsOneWidget);
+    expect(find.text('Tap to enlarge & scan'), findsOneWidget);
+
+    // Tap QR Code tile to open full screen dialog
+    await tester.tap(find.text('E-Wallet / Bank QR Code'));
+    await tester.pumpAndSettle();
+
+    // Verify Dialog content
+    expect(find.text('Scan with GCash, Maya, or any banking app'), findsOneWidget);
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+
+    // Close Dialog
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Scan with GCash, Maya, or any banking app'), findsNothing);
+  });
 }

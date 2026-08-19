@@ -33,13 +33,14 @@ class VaultItemAdapter extends TypeAdapter<VaultItem> {
       email: fields[13] as String?,
       phoneNumber: fields[14] as String?,
       pinEncrypted: fields[15] as String?,
+      qrCodeBase64: fields[16] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, VaultItem obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -71,7 +72,9 @@ class VaultItemAdapter extends TypeAdapter<VaultItem> {
       ..writeByte(14)
       ..write(obj.phoneNumber)
       ..writeByte(15)
-      ..write(obj.pinEncrypted);
+      ..write(obj.pinEncrypted)
+      ..writeByte(16)
+      ..write(obj.qrCodeBase64);
   }
 
   @override

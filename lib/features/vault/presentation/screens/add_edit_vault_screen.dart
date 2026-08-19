@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -188,6 +190,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   bool _isCustomCategory = false;
 
   CountryCode _selectedCountryCode = CountryCodeHelper.defaultCountryCode;
+  String? _qrCodeBase64;
+  bool _isPickingQr = false;
   bool _isPinVisible = false;
   bool _isPasswordVisible = false;
   bool _isSaving = false;
@@ -251,6 +255,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     final parsedPhone = CountryCodeHelper.parsePhoneNumber(widget.existingItem?.phoneNumber);
     _selectedCountryCode = parsedPhone.country;
     _phoneNumberController = TextEditingController(text: parsedPhone.localNumber);
+    _qrCodeBase64 = widget.existingItem?.qrCodeBase64;
 
     // Decrypt fields if editing
     if (widget.existingItem != null) {
@@ -453,6 +458,44 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     }
   }
 
+  Future<void> _pickQrCodeImage() async {
+    try {
+      setState(() => _isPickingQr = true);
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        final base64String = base64Encode(bytes);
+        setState(() {
+          _qrCodeBase64 = base64String;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick QR Code image: $e'),
+            backgroundColor: AppTheme.darkDestructive,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingQr = false);
+    }
+  }
+
+  void _removeQrCodeImage() {
+    setState(() {
+      _qrCodeBase64 = null;
+    });
+  }
+
   Future<void> _openPasswordGenerator() async {
     final generated = await showModalBottomSheet<String>(
       context: context,
@@ -514,6 +557,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           usernameEncrypted: encCardholder.cipherTextBase64,
           passwordEncrypted: encCardNumber.cipherTextBase64,
           cardDetailsEnc: encCardDetails.cipherTextBase64,
+          qrCodeBase64: _qrCodeBase64,
           iv: itemIv,
           category: 'Cards', // Cards do not use categories
           notes: null,
@@ -542,14 +586,15 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
             accountTrimmed.isNotEmpty ||
             phoneFormatted.isNotEmpty ||
             pinTrimmed.isNotEmpty ||
-            passTrimmed.isNotEmpty;
+            passTrimmed.isNotEmpty ||
+            (_qrCodeBase64 != null && _qrCodeBase64!.isNotEmpty);
 
         if (!hasCredential) {
           setState(() => _isSaving = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text(
-                'Enter at least one credential field (Username, Email, Account Number, Phone Number, PIN, or Password)',
+                'Enter at least one credential field (Username, Email, Account Number, Phone Number, PIN, Password, or QR Code)',
               ),
               backgroundColor: AppTheme.darkDestructive,
             ),
@@ -563,7 +608,9 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 ? emailTrimmed
                 : (accountTrimmed.isNotEmpty
                     ? accountTrimmed
-                    : (phoneFormatted.isNotEmpty ? phoneFormatted : 'Credential')));
+                    : (phoneFormatted.isNotEmpty
+                        ? phoneFormatted
+                        : (_qrCodeBase64 != null ? 'QR Code Entry' : 'Credential'))));
 
         final encUser = encryptionService.encrypt(
           primaryIdentifier,
@@ -597,6 +644,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           usernameEncrypted: encUser.cipherTextBase64,
           passwordEncrypted: encPass,
           pinEncrypted: encPin,
+          qrCodeBase64: _qrCodeBase64,
           iv: itemIv,
           category: finalCategory,
           notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
@@ -1500,6 +1548,102 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 18),
+
+                // ====================================================
+                // QR CODE SECTION
+                // ====================================================
+                _buildSectionLabel('E-WALLET / BANK QR CODE (OPTIONAL)'),
+                if (_qrCodeBase64 != null && _qrCodeBase64!.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: inputFill,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 64,
+                            height: 64,
+                            color: isDark ? const Color(0xFF18181B) : Colors.white,
+                            child: Image.memory(
+                              base64Decode(_qrCodeBase64!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.broken_image_rounded,
+                                color: textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'QR Code Attached',
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Ready for secure display & scan',
+                                style: TextStyle(
+                                  color: textMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.darkDestructive),
+                          onPressed: _removeQrCodeImage,
+                          tooltip: 'Remove QR Code',
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  InkWell(
+                    onTap: _isPickingQr ? null : _pickQrCodeImage,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: inputFill,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.qr_code_scanner_rounded,
+                            color: textPrimary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            _isPickingQr ? 'Selecting Image...' : 'Upload QR Code Image',
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: 32),
 

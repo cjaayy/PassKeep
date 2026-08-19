@@ -74,6 +74,7 @@ void main() {
         usernameEncrypted: 'enc_user',
         passwordEncrypted: 'enc_pass',
         pinEncrypted: 'enc_pin',
+        qrCodeBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
         cardDetailsEnc: null,
         iv: 'iv_val',
         category: 'Finance',
@@ -93,6 +94,7 @@ void main() {
       expect(supabaseMap['username_enc'], 'enc_user');
       expect(supabaseMap['password_enc'], 'enc_pass');
       expect(supabaseMap['pin_enc'], 'enc_pin');
+      expect(supabaseMap['qr_code_enc'], 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
       expect(supabaseMap['card_details_enc'], isNull);
       expect(supabaseMap['iv'], 'iv_val');
       expect(supabaseMap['category'], 'Finance');
@@ -106,6 +108,7 @@ void main() {
       expect(restoredFromSupabase.accountNumber, '1092837465');
       expect(restoredFromSupabase.phoneNumber, '+63 9171234567');
       expect(restoredFromSupabase.pinEncrypted, 'enc_pin');
+      expect(restoredFromSupabase.qrCodeBase64, 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
       expect(restoredFromSupabase.usernameEncrypted, 'enc_user');
       expect(restoredFromSupabase.passwordEncrypted, 'enc_pass');
     });

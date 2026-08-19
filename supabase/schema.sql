@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.vault_items (
     password_enc TEXT NOT NULL DEFAULT '',
     pin_enc TEXT,
     card_details_enc TEXT,
+    qr_code_enc TEXT,
     iv TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'General',
     notes TEXT,
@@ -32,6 +33,7 @@ ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS account_number TEXT;
 ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS phone_number TEXT;
 ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS pin_enc TEXT;
 ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS card_details_enc TEXT;
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS qr_code_enc TEXT;
 
 -- 2. Performance & Query Optimization Indexes
 CREATE INDEX IF NOT EXISTS idx_vault_items_user_id ON public.vault_items(user_id);
