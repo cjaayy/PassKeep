@@ -117,12 +117,12 @@ String toTitleCase(String input) {
 /// Screen for creating a new vault entry or editing an existing one
 class AddEditVaultScreen extends ConsumerStatefulWidget {
   final VaultItem? existingItem;
-  final String? initialItemType;
+  final String vaultType;
 
   const AddEditVaultScreen({
     super.key,
     this.existingItem,
-    this.initialItemType,
+    this.vaultType = VaultType.password,
   });
 
   @override
@@ -132,8 +132,8 @@ class AddEditVaultScreen extends ConsumerStatefulWidget {
 class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Item Type: 'login' | 'card'
-  late String _selectedItemType;
+  bool get _isCard =>
+      (widget.existingItem?.isCard ?? false) || widget.vaultType == VaultType.card;
 
   // Login Form Controllers
   late TextEditingController _titleController;
@@ -200,9 +200,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   void initState() {
     super.initState();
 
-    final isExistingCard =
-        (widget.existingItem?.isCard ?? false) || widget.initialItemType == 'card';
-    _selectedItemType = isExistingCard ? 'card' : 'login';
+    final isExistingCard = _isCard;
 
     // Initialize Service selection
     final existingTitle = widget.existingItem?.title.trim() ?? '';
@@ -525,7 +523,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
 
       VaultItem itemToSave;
 
-      if (_selectedItemType == 'card') {
+      if (_isCard) {
         // Build and encrypt Payment Card details
         final card = CardDetails(
           cardholderName: _cardholderController.text.trim(),
@@ -726,7 +724,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingItem != null;
-    final isCard = _selectedItemType == 'card';
+    final isCard = _isCard;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final scaffoldBg = isDark ? AppTheme.darkBackground : AppTheme.lightBackground;
@@ -744,8 +742,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
         scrolledUnderElevation: 0,
         title: Text(
           isEditing
-              ? (isCard ? 'Edit Payment Card' : 'Edit Vault Item')
-              : (isCard ? 'New Payment Card' : 'New Vault Item'),
+              ? (isCard ? 'Edit Payment Card' : 'Edit Password')
+              : (isCard ? 'New Payment Card' : 'New Password'),
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 18,
@@ -776,100 +774,6 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Item Type Segmented Toggle (Borderless, Monochromatic)
-              _buildSectionLabel('Item Type'),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: inputFill,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          if (_selectedItemType != 'login') {
-                            setState(() {
-                              _selectedItemType = 'login';
-                            });
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: !isCard ? primaryAction : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.vpn_key_rounded,
-                                size: 16,
-                                color: !isCard ? onPrimaryAction : textMuted,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'PASSWORD',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: !isCard ? onPrimaryAction : textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          if (_selectedItemType != 'card') {
-                            setState(() {
-                              _selectedItemType = 'card';
-                            });
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isCard ? primaryAction : Colors.transparent,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.credit_card_rounded,
-                                size: 16,
-                                color: isCard ? onPrimaryAction : textMuted,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'PAYMENT CARD',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                  color: isCard ? onPrimaryAction : textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-
               // ====================================================
               // PAYMENT CARD FORM (Zero-Knowledge, No Category/Notes)
               // ====================================================

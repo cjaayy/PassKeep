@@ -119,11 +119,24 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify App Bar & Brand
-    expect(find.text('PassKeep'), findsOneWidget);
+    // Verify App Bar & Brand on Dashboard Tab 0
+    expect(find.text('PassKeep'), findsWidgets);
+    expect(find.text('PassKeep Dashboard'), findsOneWidget);
+    expect(find.text('VAULT OVERVIEW'), findsOneWidget);
 
     // Verify Cloud Sync button is HIDDEN
     expect(find.byTooltip('Sync with Cloud'), findsNothing);
+
+    // Verify Bottom Navigation Bar Destinations (exact 5 items)
+    expect(find.text('PassKeep'), findsWidgets);
+    expect(find.text('Passwords'), findsWidgets);
+    expect(find.text('Add'), findsOneWidget);
+    expect(find.text('Cards'), findsWidgets);
+    expect(find.text('Settings'), findsOneWidget);
+
+    // Navigate to Passwords Tab (index 1)
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Passwords'));
+    await tester.pumpAndSettle();
 
     // Verify Search Input
     expect(find.byType(TextField), findsOneWidget);
@@ -134,12 +147,6 @@ void main() {
 
     // Verify Loaded Item Card
     expect(find.text('GitHub Enterprise'), findsOneWidget);
-
-    // Verify Bottom Navigation Bar Destinations
-    expect(find.text('Passwords'), findsOneWidget);
-    expect(find.text('Add'), findsOneWidget);
-    expect(find.text('Cards'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
   });
 
   testWidgets('VaultHomeScreen shows Cloud Sync button when cloud user is authenticated and not offline',
@@ -235,6 +242,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    // Switch to Passwords tab
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Passwords'));
+    await tester.pumpAndSettle();
+
     // Verify Group Title & Multi-Account Badge
     expect(find.text('Gmail'), findsOneWidget);
     expect(find.text('2 ACCOUNTS'), findsOneWidget);
@@ -293,6 +304,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    // Switch to Passwords tab
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Passwords'));
+    await tester.pumpAndSettle();
+
     // Verify Title and Privacy-First Subtitle
     expect(find.text('GCash'), findsOneWidget);
     expect(find.text('1 Saved Account'), findsOneWidget);
@@ -341,6 +356,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    // Switch to Passwords tab
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Passwords'));
+    await tester.pumpAndSettle();
+
     // Verify predefined chips are present
     expect(find.text('ALL'), findsOneWidget);
     expect(find.text('GENERAL'), findsOneWidget);
@@ -364,7 +383,7 @@ void main() {
     expect(find.text('No passwords saved in this category yet.'), findsOneWidget);
   });
 
-  testWidgets('VaultHomeScreen switches to Cards tab without category chips and context-aware Add opens Card form',
+  testWidgets('VaultHomeScreen switches to Cards tab and Add modal sheet opens Card form',
       (WidgetTester tester) async {
     final fakeLocal = FakeWidgetLocalDataSource();
     fakeLocal.items.add(
@@ -409,15 +428,24 @@ void main() {
     await tester.pumpAndSettle();
 
     // Switch to Cards tab
-    await tester.tap(find.text('Cards'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Cards'));
     await tester.pumpAndSettle();
 
     // Verify Cards screen title and card item
-    expect(find.text('Payment Cards'), findsOneWidget);
+    expect(find.text('Payment Cards'), findsWidgets);
     expect(find.text('BDO Visa Gold'), findsOneWidget);
 
-    // Tap Add button in Bottom Navigation Bar (Context-aware: opens Card form directly)
-    await tester.tap(find.text('Add'));
+    // Tap Add button in Bottom Navigation Bar (triggers Add Type selection sheet)
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Add'));
+    await tester.pumpAndSettle();
+
+    // Verify Add to Vault modal sheet options
+    expect(find.text('Add to Vault'), findsOneWidget);
+    expect(find.text('Password / Account'), findsOneWidget);
+    expect(find.text('Payment Card'), findsOneWidget);
+
+    // Tap "Payment Card" option
+    await tester.tap(find.text('Payment Card'));
     await tester.pumpAndSettle();
 
     // Verify AddEditVaultScreen opened in Payment Card mode
@@ -482,6 +510,10 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    // Switch to Passwords tab
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Passwords'));
+    await tester.pumpAndSettle();
+
     // On Passwords tab: verify only 1 password entry (not grouped into 2 accounts)
     expect(find.text('VAULT PASSWORDS (1)'), findsOneWidget);
     expect(find.text('2 ACCOUNTS'), findsNothing);
@@ -495,7 +527,7 @@ void main() {
     expect(find.text('Work is Empty'), findsOneWidget);
 
     // Switch to Cards tab
-    await tester.tap(find.text('Cards'));
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Cards'));
     await tester.pumpAndSettle();
 
     // Cards tab MUST display the Maribank Card despite category being 'Work'

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../data/models/vault_item.dart';
@@ -111,12 +112,168 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     );
   }
 
-  void _onAddTapped() {
-    final String initialType = (_selectedTabIndex == 1) ? 'card' : 'login';
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AddEditVaultScreen(initialItemType: initialType),
+  void _showAddTypeModalSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+    final inputFill = isDark ? AppTheme.darkInputFill : AppTheme.lightInputFill;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: textMuted.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              Text(
+                'Add to Vault',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Choose the type of entry you want to create',
+                style: TextStyle(color: textMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 18),
+
+              // Option 1: Password / Account
+              InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AddEditVaultScreen(vaultType: VaultType.password),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: surfaceColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.vpn_key_rounded, size: 22, color: textPrimary),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Password / Account',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Logins, apps, websites, credentials & QR codes',
+                              style: TextStyle(fontSize: 12, color: textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: textMuted),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Option 2: Payment Card
+              InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AddEditVaultScreen(vaultType: VaultType.card),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: surfaceColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.credit_card_rounded, size: 22, color: textPrimary),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Payment Card',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Debit & credit cards, CVV, expiry & PIN',
+                              style: TextStyle(fontSize: 12, color: textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: textMuted),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -137,18 +294,9 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     final primaryAction = isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary;
     final onPrimaryAction = isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
 
-    int navIndex;
-    if (_selectedTabIndex == 0) {
-      navIndex = 0;
-    } else if (_selectedTabIndex == 1) {
-      navIndex = 2;
-    } else {
-      navIndex = 3;
-    }
-
     return Scaffold(
       backgroundColor: scaffoldBg,
-      appBar: _selectedTabIndex == 2
+      appBar: _selectedTabIndex == 4
           ? null // SettingsScreen provides its own AppBar
           : AppBar(
               backgroundColor: scaffoldBg,
@@ -157,13 +305,17 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
               title: Row(
                 children: [
                   Icon(
-                    _selectedTabIndex == 1 ? Icons.credit_card_rounded : Icons.shield_rounded,
+                    _selectedTabIndex == 3
+                        ? Icons.credit_card_rounded
+                        : (_selectedTabIndex == 1 ? Icons.vpn_key_rounded : Icons.shield_rounded),
                     color: textPrimary,
                     size: 26,
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    _selectedTabIndex == 1 ? 'Payment Cards' : 'PassKeep',
+                    _selectedTabIndex == 3
+                        ? 'Payment Cards'
+                        : (_selectedTabIndex == 1 ? 'Passwords' : 'PassKeep'),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 20,
@@ -201,11 +353,18 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
       body: IndexedStack(
         index: _selectedTabIndex,
         children: [
-          // Tab 0: Passwords View (Search + Category Filter Chips + Login Items)
+          // Tab 0: PassKeep Dashboard
+          DashboardScreen(
+            onNavigateToPasswords: () => setState(() => _selectedTabIndex = 1),
+            onNavigateToCards: () => setState(() => _selectedTabIndex = 3),
+          ),
+          // Tab 1: Passwords View (Search + Category Filter Chips + Login Items)
           _buildPasswordsView(vaultState),
-          // Tab 1: Cards View (Search + Pure Payment Cards List, NO Category Chips)
+          // Tab 2: Placeholder for Add action tab
+          const SizedBox.shrink(),
+          // Tab 3: Cards View (Search + Pure Payment Cards List, NO Category Chips)
           _buildCardsView(vaultState),
-          // Tab 2: Settings View
+          // Tab 4: Settings View
           const SettingsScreen(),
         ],
       ),
@@ -239,19 +398,20 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
           }),
         ),
         child: NavigationBar(
-          selectedIndex: navIndex,
+          selectedIndex: _selectedTabIndex,
           onDestinationSelected: (index) {
-            if (index == 0) {
-              setState(() => _selectedTabIndex = 0);
-            } else if (index == 1) {
-              _onAddTapped();
-            } else if (index == 2) {
-              setState(() => _selectedTabIndex = 1);
-            } else if (index == 3) {
-              setState(() => _selectedTabIndex = 2);
+            if (index == 2) {
+              _showAddTypeModalSheet();
+            } else {
+              setState(() => _selectedTabIndex = index);
             }
           },
           destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.shield_outlined),
+              selectedIcon: Icon(Icons.shield_rounded),
+              label: 'PassKeep',
+            ),
             const NavigationDestination(
               icon: Icon(Icons.vpn_key_outlined),
               selectedIcon: Icon(Icons.vpn_key_rounded),
@@ -493,7 +653,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AddEditVaultScreen(initialItemType: 'login'),
+                        builder: (_) => const AddEditVaultScreen(vaultType: VaultType.password),
                       ),
                     );
                   },
@@ -665,7 +825,7 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AddEditVaultScreen(initialItemType: 'card'),
+                      builder: (_) => const AddEditVaultScreen(vaultType: VaultType.card),
                     ),
                   );
                 },

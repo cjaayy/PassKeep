@@ -274,15 +274,11 @@ void main() {
           encryptionServiceProvider.overrideWithValue(encryptionService),
         ],
         child: const MaterialApp(
-          home: AddEditVaultScreen(),
+          home: AddEditVaultScreen(vaultType: VaultType.card),
         ),
       ),
     );
 
-    await tester.pumpAndSettle();
-
-    // Select PAYMENT CARD toggle
-    await tester.tap(find.text('PAYMENT CARD'));
     await tester.pumpAndSettle();
 
     // Enter Card Title
