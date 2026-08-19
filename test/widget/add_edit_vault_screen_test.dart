@@ -81,7 +81,7 @@ void main() {
     final customServiceFinder = find.byWidgetPredicate(
       (widget) =>
           widget is TextField &&
-          widget.decoration?.hintText == 'Enter custom service name (e.g. Work Vpn)',
+          widget.decoration?.hintText == 'Enter custom service name (e.g. Work VPN)',
     );
     expect(customServiceFinder, findsOneWidget);
     await tester.enterText(customServiceFinder, 'work vpn portal');
@@ -106,7 +106,7 @@ void main() {
     final passwordFinder = find.byWidgetPredicate(
       (widget) =>
           widget is TextField &&
-          widget.decoration?.hintText == 'Enter or generate password / PIN',
+          widget.decoration?.hintText == '••••••••••••',
     );
     await tester.enterText(passwordFinder, 'SuperSecretPass123!');
     await tester.pumpAndSettle();
@@ -120,6 +120,112 @@ void main() {
     final savedItem = fakeLocal.items.first;
     expect(savedItem.title, 'Work Vpn Portal');
     expect(savedItem.category, 'Work');
+  });
+
+  testWidgets('AddEditVaultScreen swappable custom title and cancel button reverts to dropdown',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeLocalDataSource();
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: const MaterialApp(
+          home: AddEditVaultScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // 1. Initially, Dropdown is rendered with 'Google / Gmail'
+    expect(find.text('Google / Gmail'), findsOneWidget);
+
+    // 2. Select 'Custom...'
+    await tester.tap(find.text('Google / Gmail'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Custom...').last);
+    await tester.pumpAndSettle();
+
+    // 3. Dropdown is swapped with custom TextFormField
+    final customFieldFinder = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == 'Enter custom service name (e.g. Work VPN)',
+    );
+    expect(customFieldFinder, findsOneWidget);
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+
+    // 4. Enter custom text
+    await tester.enterText(customFieldFinder, 'Internal Work App');
+    await tester.pumpAndSettle();
+
+    // 5. Tap close / cancel button
+    await tester.tap(find.byTooltip('Choose from preset platforms'));
+    await tester.pumpAndSettle();
+
+    // 6. Custom field disappears and Dropdown is restored
+    expect(customFieldFinder, findsNothing);
+    expect(find.text('Google / Gmail'), findsOneWidget);
+  });
+
+  testWidgets('AddEditVaultScreen ensures username and email are strictly independent (no auto-population)',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeLocalDataSource();
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    // Create item with email populated, but username left blank (null)
+    final userEnc = encryptionService.encrypt('dev@company.com');
+    final passEnc = encryptionService.encrypt('password123', customIvBase64: userEnc.ivBase64);
+
+    final itemWithEmailOnly = VaultItem(
+      id: 'item-email-only',
+      title: 'Company Portal',
+      usernameEncrypted: userEnc.cipherTextBase64,
+      passwordEncrypted: passEnc.cipherTextBase64,
+      iv: userEnc.ivBase64,
+      category: 'Work',
+      username: null, // Strictly blank username
+      email: 'dev@company.com',
+      updatedAt: DateTime.now(),
+    );
+
+    fakeLocal.items.add(itemWithEmailOnly);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: MaterialApp(
+          home: AddEditVaultScreen(existingItem: itemWithEmailOnly),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify email field contains 'dev@company.com'
+    final emailFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'user@company.com',
+    );
+    final emailField = tester.widget<TextField>(emailFinder);
+    expect(emailField.controller?.text, 'dev@company.com');
+
+    // Verify username field is strictly empty and did NOT inherit email
+    final usernameFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == 'name@example.com',
+    );
+    final usernameField = tester.widget<TextField>(usernameFinder);
+    expect(usernameField.controller?.text, '');
   });
 
   testWidgets('AddEditVaultScreen encrypts account number into usernameEncrypted when email is empty',
@@ -155,7 +261,7 @@ void main() {
     final passwordFinder = find.byWidgetPredicate(
       (widget) =>
           widget is TextField &&
-          widget.decoration?.hintText == 'Enter or generate password / PIN',
+          widget.decoration?.hintText == '••••••••••••',
     );
     await tester.enterText(passwordFinder, '654321');
     await tester.pumpAndSettle();

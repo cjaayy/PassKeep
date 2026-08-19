@@ -296,27 +296,23 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 )
               : '';
 
+          final existingEmail = widget.existingItem?.email?.trim() ?? '';
+          final existingAccount = widget.existingItem?.accountNumber?.trim() ?? '';
+          final existingPhone = widget.existingItem?.phoneNumber?.trim() ?? '';
+
           if (widget.existingItem!.username != null) {
             _usernameController = TextEditingController(text: widget.existingItem!.username);
           } else {
-            final existingAccount = widget.existingItem?.accountNumber?.trim() ?? '';
-            final existingPhone = widget.existingItem?.phoneNumber?.trim() ?? '';
+            // For legacy items without separate fields:
             if (plainUser.isNotEmpty &&
-                (plainUser == existingAccount || plainUser == existingPhone)) {
-              _usernameController = TextEditingController(text: '');
-            } else if (plainUser.isNotEmpty &&
-                plainUser.contains('@') &&
-                widget.existingItem?.email == null) {
-              _emailController.text = plainUser;
-              _usernameController = TextEditingController(text: '');
-            } else if (plainUser.isNotEmpty &&
-                RegExp(r'^[0-9+\s\-()]+$').hasMatch(plainUser) &&
-                existingAccount.isEmpty &&
-                existingPhone.isEmpty) {
-              _accountNumberController.text = plainUser;
-              _usernameController = TextEditingController(text: '');
-            } else {
+                plainUser != existingEmail &&
+                plainUser != existingAccount &&
+                plainUser != existingPhone &&
+                !plainUser.contains('@') &&
+                !RegExp(r'^[0-9+\s\-()]+$').hasMatch(plainUser)) {
               _usernameController = TextEditingController(text: plainUser);
+            } else {
+              _usernameController = TextEditingController(text: '');
             }
           }
 
@@ -1026,64 +1022,10 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 // ====================================================
                 // LOGIN / PASSWORD FORM
                 // ====================================================
-                _buildSectionLabel('Title / Platform Service'),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedService,
-                  dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-                  style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: inputFill,
-                    prefixIcon: Icon(
-                      ServiceBrandHelper.getIconForService(_selectedService),
-                      color: textMuted,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items: _presetServices.map((service) {
-                    return DropdownMenuItem(
-                      value: service,
-                      child: Row(
-                        children: [
-                          Icon(
-                            ServiceBrandHelper.getIconForService(service),
-                            color: textMuted,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(service),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedService = val;
-                        _isCustomService = (val == 'Custom...');
-                        if (!_isCustomService) {
-                          _titleController.text = val;
-                        } else {
-                          _titleController.clear();
-                        }
-                      });
-                    }
-                  },
-                ),
 
+                // 1. TITLE / PLATFORM SERVICE (Dropdown OR Swappable Custom Text Field)
+                _buildSectionLabel('Title / Platform Service'),
                 if (_isCustomService) ...[
-                  const SizedBox(height: 10),
                   TextFormField(
                     controller: _titleController,
                     textCapitalization: TextCapitalization.words,
@@ -1092,9 +1034,20 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: inputFill,
-                      hintText: 'Enter custom service name (e.g. Work Vpn)',
+                      hintText: 'Enter custom service name (e.g. Work VPN)',
                       hintStyle: TextStyle(color: textMuted, fontSize: 14),
                       prefixIcon: Icon(Icons.edit_note_rounded, color: textMuted),
+                      suffixIcon: IconButton(
+                        icon: Icon(Icons.close_rounded, color: textMuted, size: 20),
+                        tooltip: 'Choose from preset platforms',
+                        onPressed: () {
+                          setState(() {
+                            _isCustomService = false;
+                            _selectedService = _presetServices.first;
+                            _titleController.text = _selectedService;
+                          });
+                        },
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -1113,12 +1066,151 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                             ? 'Custom service name is required'
                             : null,
                   ),
+                ] else ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedService,
+                    dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                    style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: inputFill,
+                      prefixIcon: Icon(
+                        ServiceBrandHelper.getIconForService(_selectedService),
+                        color: textMuted,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: _presetServices.map((service) {
+                      return DropdownMenuItem(
+                        value: service,
+                        child: Row(
+                          children: [
+                            Icon(
+                              ServiceBrandHelper.getIconForService(service),
+                              color: textMuted,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(service),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedService = val;
+                          _isCustomService = (val == 'Custom...');
+                          if (!_isCustomService) {
+                            _titleController.text = val;
+                          } else {
+                            _titleController.clear();
+                          }
+                        });
+                      }
+                    },
+                  ),
                 ],
                 const SizedBox(height: 18),
 
-                // ====================================================
-                // CREDENTIAL DETAILS (Individual Optional Fields)
-                // ====================================================
+                // 2. CATEGORY (Placed immediately below Title)
+                _buildSectionLabel('Category'),
+                if (_isCustomCategory) ...[
+                  TextFormField(
+                    controller: _customCategoryController,
+                    textCapitalization: TextCapitalization.words,
+                    inputFormatters: [TitleCaseTextInputFormatter()],
+                    style: TextStyle(color: textPrimary),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: inputFill,
+                      hintText: 'Enter custom category (e.g. Banking, Crypto)',
+                      hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                      prefixIcon: Icon(Icons.create_new_folder_outlined, color: textMuted),
+                      suffixIcon: IconButton(
+                        icon: Icon(Icons.close_rounded, color: textMuted, size: 20),
+                        tooltip: 'Choose from preset categories',
+                        onPressed: () {
+                          setState(() {
+                            _isCustomCategory = false;
+                            _selectedCategoryOption = _presetCategories.first;
+                            _customCategoryController.clear();
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    validator: (val) =>
+                        (_isCustomCategory && (val == null || val.trim().isEmpty))
+                            ? 'Custom category is required'
+                            : null,
+                  ),
+                ] else ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCategoryOption,
+                    dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+                    style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: inputFill,
+                      prefixIcon: Icon(Icons.folder_outlined, color: textMuted),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: _presetCategories.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _selectedCategoryOption = val;
+                          _isCustomCategory = (val == 'Custom...');
+                          if (!_isCustomCategory) {
+                            _customCategoryController.clear();
+                          }
+                        });
+                      }
+                    },
+                  ),
+                ],
+                const SizedBox(height: 18),
+
+                // 3. CREDENTIAL DETAILS (Individual Optional Fields)
                 _buildSectionLabel('CREDENTIAL DETAILS'),
 
                 // Username Field
@@ -1265,26 +1357,28 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // PIN Field (Masked, with reveal)
+                // PIN Field
                 _buildFieldSubLabel('PIN (Optional)'),
                 TextFormField(
                   controller: _pinController,
                   keyboardType: TextInputType.number,
                   obscureText: !_isPinVisible,
+                  maxLength: 6,
+                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
                   style: TextStyle(color: textPrimary, letterSpacing: 2.0, fontFamily: 'monospace'),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: inputFill,
-                    hintText: 'e.g. 4 or 6-digit numeric PIN',
-                    hintStyle: TextStyle(color: textMuted, fontSize: 14, letterSpacing: 0, fontFamily: null),
+                    hintText: '4-6 digit PIN',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
                     prefixIcon: Icon(Icons.pin_rounded, color: textMuted),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _isPinVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
                         color: textMuted,
+                        size: 18,
                       ),
                       onPressed: () => setState(() => _isPinVisible = !_isPinVisible),
-                      tooltip: 'Toggle PIN Visibility',
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -1302,7 +1396,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Password Field
+                // Password Field with Generator Button
                 _buildFieldSubLabel('Password (Optional)'),
                 TextFormField(
                   controller: _passwordController,
@@ -1311,7 +1405,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: inputFill,
-                    hintText: 'Enter or generate password / PIN',
+                    hintText: '••••••••••••',
                     hintStyle: TextStyle(color: textMuted, fontSize: 14),
                     prefixIcon: Icon(Icons.lock_outline_rounded, color: textMuted),
                     suffixIcon: Row(
@@ -1349,114 +1443,7 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Category Selector (Only for Passwords)
-                _buildSectionLabel('Category'),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedCategoryOption,
-                  dropdownColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
-                  style: TextStyle(color: textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: inputFill,
-                    prefixIcon: Icon(Icons.folder_outlined, color: textMuted),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items: _presetCategories.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedCategoryOption = val;
-                        _isCustomCategory = (val == 'Custom...');
-                        if (!_isCustomCategory) {
-                          _customCategoryController.clear();
-                        }
-                      });
-                    }
-                  },
-                ),
-
-                if (_isCustomCategory) ...[
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _customCategoryController,
-                    textCapitalization: TextCapitalization.words,
-                    inputFormatters: [TitleCaseTextInputFormatter()],
-                    style: TextStyle(color: textPrimary),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: inputFill,
-                      hintText: 'Enter custom category (e.g. Banking, Crypto)',
-                      hintStyle: TextStyle(color: textMuted, fontSize: 14),
-                      prefixIcon: Icon(Icons.create_new_folder_outlined, color: textMuted),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    validator: (val) =>
-                        (_isCustomCategory && (val == null || val.trim().isEmpty))
-                            ? 'Custom category is required'
-                            : null,
-                  ),
-                ],
-                const SizedBox(height: 18),
-
-                // Notes Field (Only for Passwords)
-                _buildSectionLabel('Secure Notes (Optional)'),
-                TextFormField(
-                  controller: _notesController,
-                  maxLines: 4,
-                  textCapitalization: TextCapitalization.sentences,
-                  style: TextStyle(color: textPrimary),
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: inputFill,
-                    hintText: '2FA Backup codes, PINs, or security answers...',
-                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
-                    alignLabelWithHint: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                // ====================================================
-                // QR CODE SECTION
-                // ====================================================
+                // 4. E-WALLET / BANK QR CODE SECTION
                 _buildSectionLabel('E-WALLET / BANK QR CODE (OPTIONAL)'),
                 if (_qrCodeBase64 != null && _qrCodeBase64!.isNotEmpty) ...[
                   Container(
@@ -1548,6 +1535,35 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 18),
+
+                // 5. SECURE NOTES (Moved to very bottom)
+                _buildSectionLabel('Secure Notes (Optional)'),
+                TextFormField(
+                  controller: _notesController,
+                  maxLines: 4,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: TextStyle(color: textPrimary),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: inputFill,
+                    hintText: '2FA Backup codes, PINs, or security answers...',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    alignLabelWithHint: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
               ],
               const SizedBox(height: 32),
 
