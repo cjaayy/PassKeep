@@ -211,6 +211,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Verifies if a given Master PIN is correct and ensures the active encryption key is loaded
+  Future<bool> verifyMasterPin(String pin) async {
+    try {
+      final salt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
+      final storedHash = await _secureStorage.read(key: StorageKeys.masterPinHashKey);
+
+      if (salt == null || storedHash == null) return false;
+
+      final computedHash = sha256.convert(utf8.encode('$pin:$salt')).toString();
+      if (computedHash != storedHash) return false;
+
+      final masterKey = await KeyDerivation.deriveKey256Async(password: pin, salt: salt);
+      _encryptionService.setActiveKey(masterKey);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Unlocks the vault using device Biometrics (Fingerprint / Face ID)
   Future<bool> unlockWithBiometrics() async {
     state = state.copyWith(errorMessage: null);

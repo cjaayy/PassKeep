@@ -708,13 +708,19 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Header: Avatar + Title + Category + Actions
+              // Header: Back Button + Avatar + Title + Category + Actions
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_rounded, color: textPrimary),
+                    tooltip: 'Back',
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: 4),
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       color: inputFill,
                       borderRadius: BorderRadius.circular(12),

@@ -11,6 +11,7 @@ import '../providers/vault_state.dart';
 import '../widgets/vault_detail_sheet.dart';
 import '../widgets/vault_group_card.dart';
 import '../widgets/vault_item_card.dart';
+import '../widgets/verify_master_pin_sheet.dart';
 import 'add_edit_vault_screen.dart';
 
 /// Main screen of PassKeep with tabbed navigation:
@@ -84,7 +85,24 @@ class _VaultHomeScreenState extends ConsumerState<VaultHomeScreen>
     }
   }
 
-  void _openDetailSheet(VaultItem item) {
+  Future<void> _openDetailSheet(VaultItem item) async {
+    final isSessionUnlocked = ref.read(isVaultSessionUnlockedProvider);
+
+    if (!isSessionUnlocked) {
+      final unlocked = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const VerifyMasterPinSheet(),
+      );
+
+      if (unlocked != true) {
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

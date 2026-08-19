@@ -269,4 +269,57 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Scan with GCash, Maya, or any banking app'), findsNothing);
   });
+
+  testWidgets('VaultDetailSheet Back button dismisses the sheet',
+      (WidgetTester tester) async {
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    final userEnc = encryptionService.encrypt('user@example.com');
+    final passEnc = encryptionService.encrypt('SecretPassword!', customIvBase64: userEnc.ivBase64);
+
+    final item = VaultItem(
+      id: 'github-1',
+      title: 'GitHub',
+      usernameEncrypted: userEnc.cipherTextBase64,
+      passwordEncrypted: passEnc.cipherTextBase64,
+      iv: userEnc.ivBase64,
+      category: 'Work',
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    builder: (_) => VaultDetailSheet(item: item),
+                  );
+                },
+                child: const Text('Open Sheet'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Sheet'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('GitHub'), findsOneWidget);
+    expect(find.byTooltip('Back'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('GitHub'), findsNothing);
+  });
 }

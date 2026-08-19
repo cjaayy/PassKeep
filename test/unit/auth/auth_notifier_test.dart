@@ -155,5 +155,13 @@ void main() {
       authNotifier.lockVault();
       expect(authNotifier.state.status, AuthStatus.locked);
     });
+
+    test('verifyMasterPin validates correct and incorrect PINs accurately', () async {
+      await authNotifier.setupMasterPin('123456');
+
+      expect(await authNotifier.verifyMasterPin('123456'), isTrue);
+      expect(await authNotifier.verifyMasterPin('654321'), isFalse);
+      expect(await authNotifier.verifyMasterPin('000000'), isFalse);
+    });
   });
 }

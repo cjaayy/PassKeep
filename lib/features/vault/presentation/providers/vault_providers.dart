@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../sync/data/datasources/vault_remote_datasource.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../data/datasources/vault_local_datasource.dart';
@@ -187,4 +188,15 @@ final vaultNotifierProvider = StateNotifierProvider<VaultNotifier, VaultState>((
     repository: repository,
     remoteDataSource: remoteDataSource,
   );
+});
+
+/// Session state provider tracking whether the user has verified their Master PIN
+/// during the active app session. Automatically resets when auth status is locked or reset.
+final isVaultSessionUnlockedProvider = StateProvider<bool>((ref) {
+  ref.listen(authNotifierProvider, (previous, next) {
+    if (next.status != AuthStatus.authenticated) {
+      ref.controller.state = false;
+    }
+  });
+  return false;
 });

@@ -3,10 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/card_brand_helper.dart';
-import '../../../../core/utils/clipboard_service.dart';
 import '../../../../core/utils/domain_utils.dart';
 import '../../../../core/utils/service_brand_helper.dart';
-import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
 
 /// Card widget representing a single encrypted VaultItem in the list
@@ -30,94 +28,6 @@ class VaultItemCard extends ConsumerWidget {
       return plainUsername.trim();
     } catch (_) {
       return '';
-    }
-  }
-
-  Future<void> _quickCopyCredential(BuildContext context, WidgetRef ref) async {
-    try {
-      final encryptionService = ref.read(encryptionServiceProvider);
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-
-      if (item.isCard) {
-        String cardNumber = '';
-        if (item.cardDetailsEnc != null && item.cardDetailsEnc!.isNotEmpty) {
-          final decryptedCardJson = encryptionService.decrypt(
-            cipherTextBase64: item.cardDetailsEnc!,
-            ivBase64: item.iv,
-          );
-          final card = CardDetails.fromJson(decryptedCardJson);
-          cardNumber = card.cardNumber;
-        } else {
-          cardNumber = encryptionService.decrypt(
-            cipherTextBase64: item.passwordEncrypted,
-            ivBase64: item.iv,
-          );
-        }
-
-        await ClipboardService.copyWithAutoClear(cardNumber.replaceAll(RegExp(r'\s+'), ''));
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Copied card number for "${item.title}". Auto-clears in 30s.'),
-                  ),
-                ],
-              ),
-              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      } else {
-        final plainPassword = encryptionService.decrypt(
-          cipherTextBase64: item.passwordEncrypted,
-          ivBase64: item.iv,
-        );
-
-        await ClipboardService.copyWithAutoClear(plainPassword);
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Copied password for "${item.title}". Auto-clears in 30s.'),
-                  ),
-                ],
-              ),
-              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to copy: ${e.toString()}'),
-            backgroundColor: AppTheme.darkDestructive,
-          ),
-        );
-      }
     }
   }
 
@@ -267,13 +177,6 @@ class VaultItemCard extends ConsumerWidget {
                       ),
                   ],
                 ),
-              ),
-
-              // Quick Copy Button
-              IconButton(
-                icon: Icon(Icons.copy_rounded, color: textMuted, size: 18),
-                tooltip: item.isCard ? 'Copy Card Number' : 'Copy Password',
-                onPressed: () => _quickCopyCredential(context, ref),
               ),
             ],
           ),
