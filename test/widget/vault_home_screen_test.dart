@@ -244,12 +244,14 @@ void main() {
     await tester.tap(find.text('Gmail'));
     await tester.pumpAndSettle();
 
-    // Verify both account rows are accessible
-    expect(find.byIcon(Icons.account_circle_outlined), findsNWidgets(2));
-    expect(find.byIcon(Icons.copy_rounded), findsNWidgets(2));
+    // Verify both sub-account rows are accessible with generic labels and View buttons
+    expect(find.text('Account 1'), findsOneWidget);
+    expect(find.text('Account 2'), findsOneWidget);
+    expect(find.text('View'), findsNWidgets(2));
+    expect(find.byIcon(Icons.copy_rounded), findsNothing);
   });
 
-  testWidgets('VaultHomeScreen displays Account / Phone Number as subtitle when username is empty',
+  testWidgets('VaultHomeScreen enforces privacy-first subtitle and displays category badge',
       (WidgetTester tester) async {
     final fakeLocal = FakeWidgetLocalDataSource();
     fakeLocal.items.add(
@@ -291,10 +293,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Verify Title and Account Number Subtitle
+    // Verify Title and Privacy-First Subtitle
     expect(find.text('GCash'), findsOneWidget);
-    expect(find.text('09171234567'), findsOneWidget);
-    expect(find.text('No identifier'), findsNothing);
+    expect(find.text('1 Saved Account'), findsOneWidget);
+    expect(find.text('09171234567'), findsNothing);
+    expect(find.text('View'), findsOneWidget);
   });
 
   testWidgets('VaultHomeScreen renders all predefined and custom categories in filter bar, and shows empty state',

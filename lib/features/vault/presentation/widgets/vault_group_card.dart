@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/security/security_providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/card_brand_helper.dart';
-import '../../../../core/utils/clipboard_service.dart';
 import '../../../../core/utils/domain_utils.dart';
 import '../../../../core/utils/service_brand_helper.dart';
-import '../../data/models/card_details.dart';
 import '../../data/models/vault_item.dart';
 import '../providers/vault_state.dart';
 
-/// Expandable grouped card representing multiple accounts under the same service/app
-class VaultGroupCard extends ConsumerStatefulWidget {
+/// Expandable grouped card representing multiple accounts under the same service/app.
+/// Sub-accounts are generically labeled ("Account 1", "Account 2", etc.) with brand icons
+/// and an explicit "View" action button for privacy and security.
+class VaultGroupCard extends StatefulWidget {
   final VaultItemGroup group;
   final void Function(VaultItem item) onItemTap;
 
@@ -22,10 +20,10 @@ class VaultGroupCard extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<VaultGroupCard> createState() => _VaultGroupCardState();
+  State<VaultGroupCard> createState() => _VaultGroupCardState();
 }
 
-class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
+class _VaultGroupCardState extends State<VaultGroupCard>
     with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
   late AnimationController _animationController;
@@ -63,107 +61,6 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
         _animationController.reverse();
       }
     });
-  }
-
-  String _getDecryptedUsername(VaultItem item) {
-    try {
-      final encryptionService = ref.read(encryptionServiceProvider);
-      final plain = encryptionService.decrypt(
-        cipherTextBase64: item.usernameEncrypted,
-        ivBase64: item.iv,
-      );
-      return plain.trim();
-    } catch (_) {
-      return '';
-    }
-  }
-
-  Future<void> _quickCopyCredential(VaultItem item) async {
-    try {
-      final encryptionService = ref.read(encryptionServiceProvider);
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-
-      if (item.isCard) {
-        String cardNumber = '';
-        if (item.cardDetailsEnc != null && item.cardDetailsEnc!.isNotEmpty) {
-          final decryptedCardJson = encryptionService.decrypt(
-            cipherTextBase64: item.cardDetailsEnc!,
-            ivBase64: item.iv,
-          );
-          final card = CardDetails.fromJson(decryptedCardJson);
-          cardNumber = card.cardNumber;
-        } else {
-          cardNumber = encryptionService.decrypt(
-            cipherTextBase64: item.passwordEncrypted,
-            ivBase64: item.iv,
-          );
-        }
-
-        await ClipboardService.copyWithAutoClear(cardNumber.replaceAll(RegExp(r'\s+'), ''));
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Copied card number for "${item.title}". Auto-clears in 30s.'),
-                  ),
-                ],
-              ),
-              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      } else {
-        final plainPassword = encryptionService.decrypt(
-          cipherTextBase64: item.passwordEncrypted,
-          ivBase64: item.iv,
-        );
-
-        await ClipboardService.copyWithAutoClear(plainPassword);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded,
-                    color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Copied password for "${item.title}". Auto-clears in 30s.'),
-                  ),
-                ],
-              ),
-              backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to copy credential: ${e.toString()}'),
-            backgroundColor: AppTheme.darkDestructive,
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -349,41 +246,100 @@ class _VaultGroupCardState extends ConsumerState<VaultGroupCard>
                   ),
                   itemBuilder: (context, index) {
                     final subItem = widget.group.items[index];
-                    final username = _getDecryptedUsername(subItem);
-                    final displaySubtitle = subItem.getPrimaryIdentifier(decryptedUsername: username);
+                    final accountLabel = isCardGroup ? 'Card ${index + 1}' : 'Account ${index + 1}';
 
-                    return InkWell(
-                      onTap: () => widget.onItemTap(subItem),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 6),
-                            Icon(
-                              subItem.isCard ? Icons.credit_card_rounded : Icons.account_circle_outlined,
-                              color: textMuted,
-                              size: 20,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 9.0),
+                      child: Row(
+                        children: [
+                          // Small Platform Brand Icon Badge
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: inputFill,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                displaySubtitle,
-                                style: TextStyle(
-                                  color: textPrimary,
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            clipBehavior: Clip.antiAlias,
+                            child: isCardGroup
+                                ? Icon(
+                                    brandIcon,
+                                    color: textPrimary,
+                                    size: 16,
+                                  )
+                                : Image.network(
+                                    DomainUtils.resolveFaviconUrl(widget.group.title),
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) => Icon(
+                                      brandIcon,
+                                      color: textPrimary,
+                                      size: 16,
+                                    ),
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(4.0),
+                                          child: child,
+                                        );
+                                      }
+                                      return Icon(
+                                        brandIcon,
+                                        color: textPrimary,
+                                        size: 16,
+                                      );
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(width: 12),
+
+                          // Generic Account Label ("Account 1", "Account 2", etc.)
+                          Expanded(
+                            child: Text(
+                              accountLabel,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                          const SizedBox(width: 8),
+
+                          // Explicit "View" Action Button
+                          InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => widget.onItemTap(subItem),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: inputFill,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.visibility_outlined,
+                                    size: 13,
+                                    color: textPrimary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'View',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: textPrimary,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: Icon(Icons.copy_rounded, color: textMuted, size: 18),
-                              tooltip: subItem.isCard ? 'Copy Card Number' : 'Copy Password',
-                              onPressed: () => _quickCopyCredential(subItem),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     );
                   },
