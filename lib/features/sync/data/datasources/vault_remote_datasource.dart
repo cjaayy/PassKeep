@@ -33,6 +33,24 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
 
   static const String _tableName = 'vault_items';
 
+  Never _handleSupabaseError(dynamic e, String action) {
+    if (e is Failure) throw e;
+    if (e is PostgrestException) {
+      final msg = e.message;
+      final code = e.code ?? '';
+      if (code == 'PGRST204' ||
+          msg.toLowerCase().contains('schema cache') ||
+          msg.toLowerCase().contains('could not find the') ||
+          msg.toLowerCase().contains('column')) {
+        throw SyncFailure(
+          'Supabase schema out of date ($code: $msg). Please execute the migration SQL in your Supabase SQL Editor to add missing columns (email, account_number, phone_number, pin_enc, card_details_enc).',
+        );
+      }
+      throw SyncFailure('Supabase error ($code): $msg');
+    }
+    throw SyncFailure('Failed to $action: ${e.toString()}');
+  }
+
   @override
   Future<List<VaultItem>> fetchRemoteItems() async {
     try {
@@ -46,8 +64,7 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
           .map((json) => VaultItem.fromMap(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      if (e is Failure) rethrow;
-      throw SyncFailure('Failed to fetch remote vault items from Supabase: ${e.toString()}');
+      _handleSupabaseError(e, 'fetch remote vault items');
     }
   }
 
@@ -58,8 +75,7 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
           .from(_tableName)
           .upsert(item.toSupabaseMap());
     } catch (e) {
-      if (e is Failure) rethrow;
-      throw SyncFailure('Failed to upsert remote vault item (${item.id}): ${e.toString()}');
+      _handleSupabaseError(e, 'upsert remote vault item (${item.id})');
     }
   }
 
@@ -72,8 +88,7 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
           .from(_tableName)
           .upsert(payload);
     } catch (e) {
-      if (e is Failure) rethrow;
-      throw SyncFailure('Failed to bulk upsert remote vault items: ${e.toString()}');
+      _handleSupabaseError(e, 'bulk upsert remote vault items');
     }
   }
 
@@ -88,8 +103,7 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
           })
           .eq('id', id);
     } catch (e) {
-      if (e is Failure) rethrow;
-      throw SyncFailure('Failed to delete remote vault item ($id): ${e.toString()}');
+      _handleSupabaseError(e, 'delete remote vault item ($id)');
     }
   }
 
@@ -101,8 +115,7 @@ class VaultRemoteDataSource implements IVaultRemoteDataSource {
           .delete()
           .neq('id', '00000000-0000-0000-0000-000000000000');
     } catch (e) {
-      if (e is Failure) rethrow;
-      throw SyncFailure('Failed to wipe remote vault: ${e.toString()}');
+      _handleSupabaseError(e, 'wipe remote vault');
     }
   }
 }

@@ -54,11 +54,23 @@ class VaultItem extends HiveObject {
   @HiveField(11)
   final String? cardDetailsEnc;
 
+  @HiveField(12)
+  final String? username;
+
+  @HiveField(13)
+  final String? email;
+
+  @HiveField(14)
+  final String? phoneNumber;
+
+  @HiveField(15)
+  final String? pinEncrypted;
+
   VaultItem({
     required this.id,
     required this.title,
-    required this.usernameEncrypted,
-    required this.passwordEncrypted,
+    this.usernameEncrypted = '',
+    this.passwordEncrypted = '',
     required this.iv,
     required this.category,
     this.notes,
@@ -67,6 +79,10 @@ class VaultItem extends HiveObject {
     this.accountNumber,
     this.type = 'login',
     this.cardDetailsEnc,
+    this.username,
+    this.email,
+    this.phoneNumber,
+    this.pinEncrypted,
   });
 
   bool get isCard => type == 'card';
@@ -88,6 +104,14 @@ class VaultItem extends HiveObject {
     String? type,
     String? cardDetailsEnc,
     bool clearCardDetails = false,
+    String? username,
+    bool clearUsername = false,
+    String? email,
+    bool clearEmail = false,
+    String? phoneNumber,
+    bool clearPhoneNumber = false,
+    String? pinEncrypted,
+    bool clearPinEncrypted = false,
   }) {
     return VaultItem(
       id: id ?? this.id,
@@ -102,22 +126,37 @@ class VaultItem extends HiveObject {
       accountNumber: clearAccountNumber ? null : (accountNumber ?? this.accountNumber),
       type: type ?? this.type,
       cardDetailsEnc: clearCardDetails ? null : (cardDetailsEnc ?? this.cardDetailsEnc),
+      username: clearUsername ? null : (username ?? this.username),
+      email: clearEmail ? null : (email ?? this.email),
+      phoneNumber: clearPhoneNumber ? null : (phoneNumber ?? this.phoneNumber),
+      pinEncrypted: clearPinEncrypted ? null : (pinEncrypted ?? this.pinEncrypted),
     );
   }
 
   /// Returns the primary display identifier for this vault item:
-  /// 1. The decrypted username (if provided and non-empty)
-  /// 2. The account / phone / card number (if present and non-empty)
-  /// 3. A masked placeholder if an encrypted username or card is stored
-  /// 4. Fallback to 'No identifier'
+  /// 1. Explicit username (if non-empty)
+  /// 2. Decrypted username (if non-empty)
+  /// 3. Email (if non-empty)
+  /// 4. Account number (if non-empty)
+  /// 5. Phone number (if non-empty)
+  /// 6. Masked placeholder
   String getPrimaryIdentifier({String? decryptedUsername}) {
+    if (username != null && username!.trim().isNotEmpty) {
+      return username!.trim();
+    }
     final user = decryptedUsername?.trim() ?? '';
     if (user.isNotEmpty) {
       return user;
     }
+    if (email != null && email!.trim().isNotEmpty) {
+      return email!.trim();
+    }
     final acc = accountNumber?.trim() ?? '';
     if (acc.isNotEmpty) {
       return acc;
+    }
+    if (phoneNumber != null && phoneNumber!.trim().isNotEmpty) {
+      return phoneNumber!.trim();
     }
     if (usernameEncrypted.isNotEmpty || (cardDetailsEnc != null && cardDetailsEnc!.isNotEmpty)) {
       return isCard ? '•••• ••••' : '••••••••';
@@ -130,14 +169,18 @@ class VaultItem extends HiveObject {
     return {
       'id': id,
       'title': title,
+      'username': username,
+      'email': email,
+      'account_number': accountNumber,
+      'phone_number': phoneNumber,
       'username_encrypted': usernameEncrypted,
       'password_encrypted': passwordEncrypted,
+      'pin_encrypted': pinEncrypted,
       'iv': iv,
       'category': category,
       'notes': notes,
       'is_synced': isSynced,
       'updated_at': updatedAt.toIso8601String(),
-      'account_number': accountNumber,
       'type': type,
       'card_details_enc': cardDetailsEnc,
     };
@@ -148,14 +191,18 @@ class VaultItem extends HiveObject {
     return {
       'id': id,
       'title': title,
+      'username': username,
+      'email': email,
+      'account_number': accountNumber,
+      'phone_number': phoneNumber,
       'username_enc': usernameEncrypted,
       'password_enc': passwordEncrypted,
+      'pin_enc': pinEncrypted,
       'iv': iv,
       'category': category,
       'notes': notes,
       'is_deleted': false,
       'updated_at': updatedAt.toUtc().toIso8601String(),
-      'account_number': accountNumber,
       'type': type,
       'card_details_enc': cardDetailsEnc,
     };
@@ -166,6 +213,10 @@ class VaultItem extends HiveObject {
     return VaultItem(
       id: map['id'] as String,
       title: map['title'] as String,
+      username: (map['username']) as String?,
+      email: (map['email']) as String?,
+      accountNumber: (map['account_number'] ?? map['accountNumber']) as String?,
+      phoneNumber: (map['phone_number'] ?? map['phoneNumber']) as String?,
       usernameEncrypted: (map['username_enc'] ??
           map['username_encrypted'] ??
           map['usernameEncrypted'] ??
@@ -174,12 +225,14 @@ class VaultItem extends HiveObject {
           map['password_encrypted'] ??
           map['passwordEncrypted'] ??
           '') as String,
+      pinEncrypted: (map['pin_enc'] ??
+          map['pin_encrypted'] ??
+          map['pinEncrypted']) as String?,
       iv: map['iv'] as String,
       category: (map['category'] as String?) ?? 'General',
       notes: map['notes'] as String?,
       isSynced: (map['is_synced'] ?? map['isSynced'] ?? false) as bool,
       updatedAt: DateTime.parse((map['updated_at'] ?? map['updatedAt']) as String),
-      accountNumber: (map['account_number'] ?? map['accountNumber']) as String?,
       type: (map['type'] as String?) ?? 'login',
       cardDetailsEnc: (map['card_details_enc'] ?? map['cardDetailsEnc']) as String?,
     );
@@ -213,7 +266,11 @@ class VaultItem extends HiveObject {
         other.updatedAt == updatedAt &&
         other.accountNumber == accountNumber &&
         other.type == type &&
-        other.cardDetailsEnc == cardDetailsEnc;
+        other.cardDetailsEnc == cardDetailsEnc &&
+        other.username == username &&
+        other.email == email &&
+        other.phoneNumber == phoneNumber &&
+        other.pinEncrypted == pinEncrypted;
   }
 
   @override
@@ -229,6 +286,10 @@ class VaultItem extends HiveObject {
         updatedAt.hashCode ^
         accountNumber.hashCode ^
         type.hashCode ^
-        cardDetailsEnc.hashCode;
+        cardDetailsEnc.hashCode ^
+        username.hashCode ^
+        email.hashCode ^
+        phoneNumber.hashCode ^
+        pinEncrypted.hashCode;
   }
 }

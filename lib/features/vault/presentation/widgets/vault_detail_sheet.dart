@@ -25,7 +25,12 @@ class VaultDetailSheet extends ConsumerStatefulWidget {
 class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
   // Login fields
   bool _isPasswordVisible = false;
+  bool _isPinVisible = false;
   String _plainUsername = '';
+  String _plainEmail = '';
+  String _plainAccountNumber = '';
+  String _plainPhoneNumber = '';
+  String _plainPin = '';
   String _plainPassword = '';
 
   // Payment Card fields
@@ -36,6 +41,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
 
   String? _decryptionError;
   Timer? _passwordHideTimer;
+  Timer? _pinHideTimer;
   Timer? _cvvHideTimer;
 
   @override
@@ -47,6 +53,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
   @override
   void dispose() {
     _passwordHideTimer?.cancel();
+    _pinHideTimer?.cancel();
     _cvvHideTimer?.cancel();
     super.dispose();
   }
@@ -77,14 +84,48 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
           );
         }
       } else {
-        _plainUsername = encryptionService.decrypt(
-          cipherTextBase64: widget.item.usernameEncrypted,
-          ivBase64: widget.item.iv,
-        );
-        _plainPassword = encryptionService.decrypt(
-          cipherTextBase64: widget.item.passwordEncrypted,
-          ivBase64: widget.item.iv,
-        );
+        final plainEncryptedUser = widget.item.usernameEncrypted.isNotEmpty
+            ? encryptionService.decrypt(
+                cipherTextBase64: widget.item.usernameEncrypted,
+                ivBase64: widget.item.iv,
+              ).trim()
+            : '';
+
+        _plainEmail = widget.item.email?.trim() ?? '';
+        _plainAccountNumber = widget.item.accountNumber?.trim() ?? '';
+        _plainPhoneNumber = widget.item.phoneNumber?.trim() ?? '';
+
+        if (widget.item.username != null && widget.item.username!.isNotEmpty) {
+          _plainUsername = widget.item.username!.trim();
+        } else {
+          // If no separate username field was populated, evaluate plainEncryptedUser:
+          if (plainEncryptedUser.isNotEmpty &&
+              plainEncryptedUser != _plainAccountNumber &&
+              plainEncryptedUser != _plainPhoneNumber &&
+              plainEncryptedUser != _plainEmail) {
+            _plainUsername = plainEncryptedUser;
+          } else {
+            _plainUsername = '';
+          }
+        }
+
+        if (widget.item.pinEncrypted != null && widget.item.pinEncrypted!.isNotEmpty) {
+          _plainPin = encryptionService.decrypt(
+            cipherTextBase64: widget.item.pinEncrypted!,
+            ivBase64: widget.item.iv,
+          );
+        } else {
+          _plainPin = '';
+        }
+
+        if (widget.item.passwordEncrypted.isNotEmpty) {
+          _plainPassword = encryptionService.decrypt(
+            cipherTextBase64: widget.item.passwordEncrypted,
+            ivBase64: widget.item.iv,
+          );
+        } else {
+          _plainPassword = '';
+        }
       }
       _decryptionError = null;
     } catch (e) {
@@ -104,6 +145,18 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
     });
   }
 
+  void _togglePinVisibility() {
+    setState(() {
+      _isPinVisible = !_isPinVisible;
+      if (_isPinVisible) {
+        _pinHideTimer?.cancel();
+        _pinHideTimer = Timer(const Duration(seconds: 15), () {
+          if (mounted) setState(() => _isPinVisible = false);
+        });
+      }
+    });
+  }
+
   void _toggleCvvVisibility() {
     setState(() {
       _isCvvVisible = !_isCvvVisible;
@@ -116,13 +169,10 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
     });
   }
 
-  Future<void> _copyUsername() async {
-    final textToCopy = _plainUsername.isNotEmpty
-        ? _plainUsername
-        : (widget.item.accountNumber ?? '');
-    if (textToCopy.isEmpty) return;
+  Future<void> _copyField(String label, String value) async {
+    if (value.isEmpty) return;
 
-    await ClipboardService.copyWithAutoClear(textToCopy);
+    await ClipboardService.copyWithAutoClear(value);
     if (mounted) {
       final isDark = Theme.of(context).brightness == Brightness.dark;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,32 +185,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                 size: 18,
               ),
               const SizedBox(width: 8),
-              const Text('Identifier copied. Clipboard auto-clears in 30s.'),
-            ],
-          ),
-          backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
-  Future<void> _copyPassword() async {
-    await ClipboardService.copyWithAutoClear(_plainPassword);
-    if (mounted) {
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                Icons.check_circle_rounded,
-                color: isDark ? AppTheme.darkPrimary : AppTheme.lightOnPrimary,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              const Text('Password copied. Clipboard auto-clears in 30s.'),
+              Text('$label copied. Clipboard auto-clears in 30s.'),
             ],
           ),
           backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
@@ -856,78 +881,139 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                 ),
               ] else ...[
                 // LOGIN / PASSWORD VIEW
-                if (_plainUsername.isNotEmpty &&
-                    _plainUsername != widget.item.accountNumber) ...[
+                // Username Field
+                if (_plainUsername.isNotEmpty) ...[
                   _buildFieldCard(
-                    title: 'Username / Email',
+                    title: 'Username',
                     content: _plainUsername,
                     trailing: IconButton(
                       icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
-                      onPressed: _copyUsername,
+                      onPressed: () => _copyField('Username', _plainUsername),
                       tooltip: 'Copy Username',
                     ),
                   ),
                   const SizedBox(height: 14),
                 ],
 
-                // Account / Phone Number Field
-                if (widget.item.accountNumber != null &&
-                    widget.item.accountNumber!.isNotEmpty) ...[
+                // Email Field
+                if (_plainEmail.isNotEmpty) ...[
                   _buildFieldCard(
-                    title: 'Account / Phone Number',
-                    content: widget.item.accountNumber!,
+                    title: 'Email',
+                    content: _plainEmail,
                     trailing: IconButton(
                       icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
-                      onPressed: () {
-                        ClipboardService.copyWithAutoClear(widget.item.accountNumber!);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Account number copied (clears in 30s).'),
-                            backgroundColor: surfaceColor,
-                          ),
-                        );
-                      },
+                      onPressed: () => _copyField('Email', _plainEmail),
+                      tooltip: 'Copy Email',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
+                // Account Number Field
+                if (_plainAccountNumber.isNotEmpty) ...[
+                  _buildFieldCard(
+                    title: 'Account Number',
+                    content: _plainAccountNumber,
+                    trailing: IconButton(
+                      icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
+                      onPressed: () => _copyField('Account Number', _plainAccountNumber),
                       tooltip: 'Copy Account Number',
                     ),
                   ),
                   const SizedBox(height: 14),
                 ],
 
-                // Password Field
-                _buildFieldCard(
-                  title: 'Password / PIN',
-                  content: _isPasswordVisible ? _plainPassword : '••••••••••••',
-                  isMonospace: true,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility_off_rounded
-                              : Icons.visibility_rounded,
-                          color: textMuted,
-                          size: 20,
-                        ),
-                        onPressed: _togglePasswordVisibility,
-                        tooltip: 'Toggle Password',
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
-                        onPressed: _copyPassword,
-                        tooltip: 'Copy Password',
-                      ),
-                    ],
-                  ),
-                ),
-                if (_isPasswordVisible)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0, left: 4.0),
-                    child: Text(
-                      'Password auto-hiding in 15 seconds for security.',
-                      style: TextStyle(color: textMuted, fontSize: 11),
+                // Phone Number Field
+                if (_plainPhoneNumber.isNotEmpty) ...[
+                  _buildFieldCard(
+                    title: 'Phone Number',
+                    content: _plainPhoneNumber,
+                    trailing: IconButton(
+                      icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
+                      onPressed: () => _copyField('Phone Number', _plainPhoneNumber),
+                      tooltip: 'Copy Phone Number',
                     ),
                   ),
+                  const SizedBox(height: 14),
+                ],
+
+                // PIN Field
+                if (_plainPin.isNotEmpty) ...[
+                  _buildFieldCard(
+                    title: 'PIN',
+                    content: _isPinVisible ? _plainPin : '••••••',
+                    isMonospace: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _isPinVisible
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            color: textMuted,
+                            size: 20,
+                          ),
+                          onPressed: _togglePinVisibility,
+                          tooltip: 'Toggle PIN',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
+                          onPressed: () => _copyField('PIN', _plainPin),
+                          tooltip: 'Copy PIN',
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isPinVisible)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+                      child: Text(
+                        'PIN auto-hiding in 15 seconds for security.',
+                        style: TextStyle(color: textMuted, fontSize: 11),
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                ],
+
+                // Password Field
+                if (_plainPassword.isNotEmpty) ...[
+                  _buildFieldCard(
+                    title: 'Password',
+                    content: _isPasswordVisible ? _plainPassword : '••••••••••••',
+                    isMonospace: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _isPasswordVisible
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            color: textMuted,
+                            size: 20,
+                          ),
+                          onPressed: _togglePasswordVisibility,
+                          tooltip: 'Toggle Password',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.copy_rounded, color: textMuted, size: 20),
+                          onPressed: () => _copyField('Password', _plainPassword),
+                          tooltip: 'Copy Password',
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isPasswordVisible)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0, left: 4.0),
+                      child: Text(
+                        'Password auto-hiding in 15 seconds for security.',
+                        style: TextStyle(color: textMuted, fontSize: 11),
+                      ),
+                    ),
+                  const SizedBox(height: 14),
+                ],
                 const SizedBox(height: 14),
 
                 // Notes Field

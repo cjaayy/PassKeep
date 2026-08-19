@@ -228,7 +228,7 @@ void main() {
     expect(usernameField.controller?.text, '');
   });
 
-  testWidgets('AddEditVaultScreen rejects submission if both Username and Account Number are empty',
+  testWidgets('AddEditVaultScreen rejects submission if all credential fields are empty',
       (WidgetTester tester) async {
     final fakeLocal = FakeLocalDataSource();
     final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
@@ -248,15 +248,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Enter password only
-    final passwordFinder = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField &&
-          widget.decoration?.hintText == 'Enter or generate password / PIN',
-    );
-    await tester.enterText(passwordFinder, 'SecretPass123!');
-    await tester.pumpAndSettle();
-
+    // Leave all credential fields (username, email, account, phone, pin, password) empty
     // Attempt save
     await tester.tap(find.byTooltip('Save Item'));
     await tester.pumpAndSettle();
@@ -264,7 +256,7 @@ void main() {
     // Verify item was NOT saved and validation error is shown
     expect(fakeLocal.items.isEmpty, true);
     expect(
-      find.text('Enter either Username/Email or Account/Phone Number'),
+      find.textContaining('at least one credential field'),
       findsWidgets,
     );
   });
@@ -351,5 +343,49 @@ void main() {
     expect(savedCard.category, 'Cards');
     expect(savedCard.accountNumber, '•••• •••• •••• 2345');
     expect(savedCard.cardDetailsEnc, isNotNull);
+  });
+
+  testWidgets('AddEditVaultScreen formats phone number with selected country code',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeLocalDataSource();
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: const MaterialApp(
+          home: AddEditVaultScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify default country code +63 flag is rendered
+    expect(find.text('🇵🇭'), findsOneWidget);
+    expect(find.text('+63'), findsOneWidget);
+
+    // Enter local phone number digits
+    final phoneFinder = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == '917 123 4567',
+    );
+    expect(phoneFinder, findsOneWidget);
+    await tester.enterText(phoneFinder, '9171234567');
+    await tester.pumpAndSettle();
+
+    // Save item
+    await tester.tap(find.byTooltip('Save Item'));
+    await tester.pumpAndSettle();
+
+    // Verify saved item phone number has country code prefix
+    expect(fakeLocal.items.length, 1);
+    final savedItem = fakeLocal.items.first;
+    expect(savedItem.phoneNumber, '+63 9171234567');
   });
 }

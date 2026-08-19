@@ -7,8 +7,15 @@ CREATE TABLE IF NOT EXISTS public.vault_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
-    username_enc TEXT NOT NULL,
-    password_enc TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'login',
+    username TEXT,
+    email TEXT,
+    account_number TEXT,
+    phone_number TEXT,
+    username_enc TEXT NOT NULL DEFAULT '',
+    password_enc TEXT NOT NULL DEFAULT '',
+    pin_enc TEXT,
+    card_details_enc TEXT,
     iv TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'General',
     notes TEXT,
@@ -16,6 +23,15 @@ CREATE TABLE IF NOT EXISTS public.vault_items (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Schema Migration for Existing Databases (Run in Supabase SQL Editor if columns are missing):
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'login';
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS account_number TEXT;
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS phone_number TEXT;
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS pin_enc TEXT;
+ALTER TABLE public.vault_items ADD COLUMN IF NOT EXISTS card_details_enc TEXT;
 
 -- 2. Performance & Query Optimization Indexes
 CREATE INDEX IF NOT EXISTS idx_vault_items_user_id ON public.vault_items(user_id);

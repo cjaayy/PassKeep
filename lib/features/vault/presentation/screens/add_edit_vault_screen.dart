@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/security/security_providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/card_brand_helper.dart';
+import '../../../../core/utils/country_code_helper.dart';
 import '../../../../core/utils/service_brand_helper.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/providers/supabase_auth_providers.dart';
@@ -136,7 +137,10 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   late TextEditingController _titleController;
   late TextEditingController _customCategoryController;
   late TextEditingController _usernameController;
+  late TextEditingController _emailController;
   late TextEditingController _accountNumberController;
+  late TextEditingController _phoneNumberController;
+  late TextEditingController _pinController;
   late TextEditingController _passwordController;
   late TextEditingController _notesController;
 
@@ -183,6 +187,8 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
   late String _selectedCategoryOption;
   bool _isCustomCategory = false;
 
+  CountryCode _selectedCountryCode = CountryCodeHelper.defaultCountryCode;
+  bool _isPinVisible = false;
   bool _isPasswordVisible = false;
   bool _isSaving = false;
 
@@ -238,6 +244,14 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     _cardCvvController = TextEditingController();
     _cardPinController = TextEditingController();
 
+    _emailController = TextEditingController(text: widget.existingItem?.email ?? '');
+    _accountNumberController =
+        TextEditingController(text: widget.existingItem?.accountNumber ?? '');
+
+    final parsedPhone = CountryCodeHelper.parsePhoneNumber(widget.existingItem?.phoneNumber);
+    _selectedCountryCode = parsedPhone.country;
+    _phoneNumberController = TextEditingController(text: parsedPhone.localNumber);
+
     // Decrypt fields if editing
     if (widget.existingItem != null) {
       final encryptionService = ref.read(encryptionServiceProvider);
@@ -256,54 +270,64 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           _cardCvvController = TextEditingController(text: card.cvv);
           _cardPinController = TextEditingController(text: card.cardPin);
           _usernameController = TextEditingController();
-          _accountNumberController = TextEditingController();
+          _pinController = TextEditingController();
           _passwordController = TextEditingController();
         } else {
-          final plainUser = encryptionService.decrypt(
-            cipherTextBase64: widget.existingItem!.usernameEncrypted,
-            ivBase64: widget.existingItem!.iv,
-          ).trim();
-          final plainPass = encryptionService.decrypt(
-            cipherTextBase64: widget.existingItem!.passwordEncrypted,
-            ivBase64: widget.existingItem!.iv,
-          );
+          final plainUser = widget.existingItem!.usernameEncrypted.isNotEmpty
+              ? encryptionService.decrypt(
+                  cipherTextBase64: widget.existingItem!.usernameEncrypted,
+                  ivBase64: widget.existingItem!.iv,
+                ).trim()
+              : '';
+          final plainPass = widget.existingItem!.passwordEncrypted.isNotEmpty
+              ? encryptionService.decrypt(
+                  cipherTextBase64: widget.existingItem!.passwordEncrypted,
+                  ivBase64: widget.existingItem!.iv,
+                )
+              : '';
+          final plainPin = (widget.existingItem!.pinEncrypted != null &&
+                  widget.existingItem!.pinEncrypted!.isNotEmpty)
+              ? encryptionService.decrypt(
+                  cipherTextBase64: widget.existingItem!.pinEncrypted!,
+                  ivBase64: widget.existingItem!.iv,
+                )
+              : '';
 
-          final existingAccount = widget.existingItem?.accountNumber?.trim() ?? '';
-
-          if (existingAccount.isNotEmpty) {
-            if (plainUser == existingAccount) {
-              // Saved with phone/account number only
-              _usernameController = TextEditingController(text: '');
-              _accountNumberController = TextEditingController(text: existingAccount);
-            } else {
-              // Saved with both username and account number
-              _usernameController = TextEditingController(text: plainUser);
-              _accountNumberController = TextEditingController(text: existingAccount);
-            }
+          if (widget.existingItem!.username != null) {
+            _usernameController = TextEditingController(text: widget.existingItem!.username);
           } else {
-            // If no separate accountNumber was recorded, check if plainUser is a phone/numeric account
-            final isPhoneOrAccountNumber =
-                RegExp(r'^[0-9+\s\-()]+$').hasMatch(plainUser) && !plainUser.contains('@');
-            if (isPhoneOrAccountNumber) {
+            final existingAccount = widget.existingItem?.accountNumber?.trim() ?? '';
+            final existingPhone = widget.existingItem?.phoneNumber?.trim() ?? '';
+            if (plainUser.isNotEmpty &&
+                (plainUser == existingAccount || plainUser == existingPhone)) {
               _usernameController = TextEditingController(text: '');
-              _accountNumberController = TextEditingController(text: plainUser);
+            } else if (plainUser.isNotEmpty &&
+                plainUser.contains('@') &&
+                widget.existingItem?.email == null) {
+              _emailController.text = plainUser;
+              _usernameController = TextEditingController(text: '');
+            } else if (plainUser.isNotEmpty &&
+                RegExp(r'^[0-9+\s\-()]+$').hasMatch(plainUser) &&
+                existingAccount.isEmpty &&
+                existingPhone.isEmpty) {
+              _accountNumberController.text = plainUser;
+              _usernameController = TextEditingController(text: '');
             } else {
               _usernameController = TextEditingController(text: plainUser);
-              _accountNumberController = TextEditingController(text: '');
             }
           }
 
           _passwordController = TextEditingController(text: plainPass);
+          _pinController = TextEditingController(text: plainPin);
         }
       } catch (_) {
         _usernameController = TextEditingController();
-        _accountNumberController =
-            TextEditingController(text: widget.existingItem?.accountNumber ?? '');
+        _pinController = TextEditingController();
         _passwordController = TextEditingController();
       }
     } else {
       _usernameController = TextEditingController();
-      _accountNumberController = TextEditingController();
+      _pinController = TextEditingController();
       _passwordController = TextEditingController();
     }
   }
@@ -313,7 +337,10 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     _titleController.dispose();
     _customCategoryController.dispose();
     _usernameController.dispose();
+    _emailController.dispose();
     _accountNumberController.dispose();
+    _phoneNumberController.dispose();
+    _pinController.dispose();
     _passwordController.dispose();
     _notesController.dispose();
     _cardTitleController.dispose();
@@ -323,6 +350,107 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
     _cardCvvController.dispose();
     _cardPinController.dispose();
     super.dispose();
+  }
+
+  Future<void> _openCountryCodePicker() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+    final textPrimary = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textMuted = isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted;
+
+    final selected = await showModalBottomSheet<CountryCode>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.85,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: textMuted.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Select Country Code',
+                        style: TextStyle(
+                          color: textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollController,
+                    itemCount: CountryCodeHelper.commonCountryCodes.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                    ),
+                    itemBuilder: (context, index) {
+                      final item = CountryCodeHelper.commonCountryCodes[index];
+                      final isSelected = item.code == _selectedCountryCode.code;
+
+                      return ListTile(
+                        leading: Text(
+                          item.flag,
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        title: Text(
+                          item.name,
+                          style: TextStyle(
+                            color: textPrimary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 15,
+                          ),
+                        ),
+                        trailing: Text(
+                          item.code,
+                          style: TextStyle(
+                            color: isSelected
+                                ? (isDark ? AppTheme.darkPrimary : AppTheme.lightPrimary)
+                                : textMuted,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(context, item),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (selected != null) {
+      setState(() {
+        _selectedCountryCode = selected;
+      });
+    }
   }
 
   Future<void> _openPasswordGenerator() async {
@@ -400,17 +528,59 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
             : _selectedCategoryOption;
 
         final userTrimmed = _usernameController.text.trim();
+        final emailTrimmed = _emailController.text.trim();
         final accountTrimmed = _accountNumberController.text.trim();
-        final primaryIdentifier = userTrimmed.isNotEmpty ? userTrimmed : accountTrimmed;
+        final phoneDigits = _phoneNumberController.text.replaceAll(RegExp(r'\D'), '');
+        final phoneFormatted = phoneDigits.isNotEmpty
+            ? CountryCodeHelper.formatFullPhoneNumber(_selectedCountryCode, phoneDigits)
+            : '';
+        final pinTrimmed = _pinController.text.trim();
+        final passTrimmed = _passwordController.text;
+
+        final hasCredential = userTrimmed.isNotEmpty ||
+            emailTrimmed.isNotEmpty ||
+            accountTrimmed.isNotEmpty ||
+            phoneFormatted.isNotEmpty ||
+            pinTrimmed.isNotEmpty ||
+            passTrimmed.isNotEmpty;
+
+        if (!hasCredential) {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Enter at least one credential field (Username, Email, Account Number, Phone Number, PIN, or Password)',
+              ),
+              backgroundColor: AppTheme.darkDestructive,
+            ),
+          );
+          return;
+        }
+
+        final primaryIdentifier = userTrimmed.isNotEmpty
+            ? userTrimmed
+            : (emailTrimmed.isNotEmpty
+                ? emailTrimmed
+                : (accountTrimmed.isNotEmpty
+                    ? accountTrimmed
+                    : (phoneFormatted.isNotEmpty ? phoneFormatted : 'Credential')));
 
         final encUser = encryptionService.encrypt(
           primaryIdentifier,
           customIvBase64: itemIv,
         );
-        final encPass = encryptionService.encrypt(
-          _passwordController.text,
-          customIvBase64: itemIv,
-        );
+        final encPass = passTrimmed.isNotEmpty
+            ? encryptionService.encrypt(
+                passTrimmed,
+                customIvBase64: itemIv,
+              ).cipherTextBase64
+            : '';
+        final encPin = pinTrimmed.isNotEmpty
+            ? encryptionService.encrypt(
+                pinTrimmed,
+                customIvBase64: itemIv,
+              ).cipherTextBase64
+            : null;
 
         final finalTitle = _isCustomService
             ? toTitleCase(_titleController.text.trim())
@@ -420,14 +590,18 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           id: widget.existingItem?.id ?? const Uuid().v4(),
           title: finalTitle,
           type: 'login',
+          username: userTrimmed.isNotEmpty ? userTrimmed : null,
+          email: emailTrimmed.isNotEmpty ? emailTrimmed : null,
+          accountNumber: accountTrimmed.isNotEmpty ? accountTrimmed : null,
+          phoneNumber: phoneFormatted.isNotEmpty ? phoneFormatted : null,
           usernameEncrypted: encUser.cipherTextBase64,
-          passwordEncrypted: encPass.cipherTextBase64,
+          passwordEncrypted: encPass,
+          pinEncrypted: encPin,
           iv: itemIv,
           category: finalCategory,
           notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
           isSynced: false,
           updatedAt: DateTime.now(),
-          accountNumber: accountTrimmed.isNotEmpty ? accountTrimmed : null,
         );
       }
 
@@ -481,6 +655,21 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
           fontSize: 11,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldSubLabel(String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6.0, top: 2.0, left: 2.0),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -975,11 +1164,15 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                 ],
                 const SizedBox(height: 18),
 
-                // Username / Email Field
-                _buildSectionLabel('Username / Email (Optional if Phone/Account No. is provided)'),
+                // ====================================================
+                // CREDENTIAL DETAILS (Individual Optional Fields)
+                // ====================================================
+                _buildSectionLabel('CREDENTIAL DETAILS'),
+
+                // Username Field
+                _buildFieldSubLabel('Username (Optional)'),
                 TextFormField(
                   controller: _usernameController,
-                  keyboardType: TextInputType.emailAddress,
                   style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
@@ -1000,34 +1193,21 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  validator: (val) {
-                    final userVal = val?.trim() ?? '';
-                    final accountVal = _accountNumberController.text.trim();
-                    if (userVal.isEmpty && accountVal.isEmpty) {
-                      return 'Enter either Username/Email or Account/Phone Number';
-                    }
-                    return null;
-                  },
-                  onChanged: (_) {
-                    if (_accountNumberController.text.trim().isNotEmpty) {
-                      _formKey.currentState?.validate();
-                    }
-                  },
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                // Account / Phone Number Field
-                _buildSectionLabel('Account / Phone Number (Optional if Username/Email is provided)'),
+                // Email Field
+                _buildFieldSubLabel('Email (Optional)'),
                 TextFormField(
-                  controller: _accountNumberController,
-                  keyboardType: TextInputType.phone,
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   style: TextStyle(color: textPrimary),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: inputFill,
-                    hintText: 'e.g. 09171234567, 1234-5678-90',
+                    hintText: 'user@company.com',
                     hintStyle: TextStyle(color: textMuted, fontSize: 14),
-                    prefixIcon: Icon(Icons.pin_outlined, color: textMuted),
+                    prefixIcon: Icon(Icons.mail_outline_rounded, color: textMuted),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -1041,24 +1221,137 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  validator: (val) {
-                    final accountVal = val?.trim() ?? '';
-                    final userVal = _usernameController.text.trim();
-                    if (accountVal.isEmpty && userVal.isEmpty) {
-                      return 'Enter either Username/Email or Account/Phone Number';
-                    }
-                    return null;
-                  },
-                  onChanged: (_) {
-                    if (_usernameController.text.trim().isNotEmpty) {
-                      _formKey.currentState?.validate();
-                    }
-                  },
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
 
-                // Password / PIN Field
-                _buildSectionLabel('Password / PIN'),
+                // Account Number Field
+                _buildFieldSubLabel('Account Number (Optional)'),
+                TextFormField(
+                  controller: _accountNumberController,
+                  keyboardType: TextInputType.text,
+                  style: TextStyle(color: textPrimary),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: inputFill,
+                    hintText: 'e.g. 09171234567, 1234-5678-90',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: Icon(Icons.badge_outlined, color: textMuted),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Phone Number Field
+                _buildFieldSubLabel('Phone Number (Optional)'),
+                TextFormField(
+                  controller: _phoneNumberController,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: TextStyle(color: textPrimary),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: inputFill,
+                    hintText: '917 123 4567',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                    prefixIcon: InkWell(
+                      onTap: _openCountryCodePicker,
+                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedCountryCode.flag,
+                              style: const TextStyle(fontSize: 18),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _selectedCountryCode.code,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(Icons.arrow_drop_down_rounded, color: textMuted, size: 20),
+                            const SizedBox(width: 6),
+                            Container(
+                              width: 1,
+                              height: 20,
+                              color: isDark ? const Color(0xFF3F3F46) : const Color(0xFFCBD5E1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // PIN Field (Masked, with reveal)
+                _buildFieldSubLabel('PIN (Optional)'),
+                TextFormField(
+                  controller: _pinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: !_isPinVisible,
+                  style: TextStyle(color: textPrimary, letterSpacing: 2.0, fontFamily: 'monospace'),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: inputFill,
+                    hintText: 'e.g. 4 or 6-digit numeric PIN',
+                    hintStyle: TextStyle(color: textMuted, fontSize: 14, letterSpacing: 0, fontFamily: null),
+                    prefixIcon: Icon(Icons.pin_rounded, color: textMuted),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPinVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                        color: textMuted,
+                      ),
+                      onPressed: () => setState(() => _isPinVisible = !_isPinVisible),
+                      tooltip: 'Toggle PIN Visibility',
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Password Field
+                _buildFieldSubLabel('Password (Optional)'),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
@@ -1101,8 +1394,6 @@ class _AddEditVaultScreenState extends ConsumerState<AddEditVaultScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  validator: (val) =>
-                      (val == null || val.isEmpty) ? 'Password or PIN is required' : null,
                 ),
                 const SizedBox(height: 18),
 

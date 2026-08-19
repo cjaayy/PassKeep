@@ -29,13 +29,17 @@ class VaultItemAdapter extends TypeAdapter<VaultItem> {
       accountNumber: fields[9] as String?,
       type: (fields[10] as String?) ?? 'login',
       cardDetailsEnc: fields[11] as String?,
+      username: fields[12] as String?,
+      email: fields[13] as String?,
+      phoneNumber: fields[14] as String?,
+      pinEncrypted: fields[15] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, VaultItem obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -59,7 +63,15 @@ class VaultItemAdapter extends TypeAdapter<VaultItem> {
       ..writeByte(10)
       ..write(obj.type)
       ..writeByte(11)
-      ..write(obj.cardDetailsEnc);
+      ..write(obj.cardDetailsEnc)
+      ..writeByte(12)
+      ..write(obj.username)
+      ..writeByte(13)
+      ..write(obj.email)
+      ..writeByte(14)
+      ..write(obj.phoneNumber)
+      ..writeByte(15)
+      ..write(obj.pinEncrypted);
   }
 
   @override

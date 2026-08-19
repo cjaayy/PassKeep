@@ -10,7 +10,7 @@ import 'package:passkeep/features/vault/presentation/widgets/vault_detail_sheet.
 class FakeSecureStorage extends Fake implements FlutterSecureStorage {}
 
 void main() {
-  testWidgets('VaultDetailSheet renders Account/Phone Number and hides Username when username is empty',
+  testWidgets('VaultDetailSheet renders Account Number and hides Username when username is empty',
       (WidgetTester tester) async {
     final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
     encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
@@ -47,16 +47,16 @@ void main() {
     // Verify Title
     expect(find.text('GCash'), findsOneWidget);
 
-    // Verify Username/Email tile is NOT present (because plainUsername == accountNumber)
-    expect(find.text('Username / Email'), findsNothing);
+    // Verify Username tile is NOT present (because plainUsername == accountNumber)
+    expect(find.text('Username'), findsNothing);
 
-    // Verify Account/Phone Number tile IS present with copy action
-    expect(find.text('Account / Phone Number'), findsOneWidget);
+    // Verify Account Number tile IS present with copy action
+    expect(find.text('Account Number'), findsOneWidget);
     expect(find.text('09171234567'), findsOneWidget);
     expect(find.byTooltip('Copy Account Number'), findsOneWidget);
   });
 
-  testWidgets('VaultDetailSheet renders Username/Email and hides Account/Phone Number when account number is empty',
+  testWidgets('VaultDetailSheet renders Username and hides Account Number when account number is empty',
       (WidgetTester tester) async {
     final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
     encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
@@ -92,13 +92,67 @@ void main() {
     // Verify Title
     expect(find.text('GitHub'), findsOneWidget);
 
-    // Verify Username/Email tile IS present with copy action
-    expect(find.text('Username / Email'), findsOneWidget);
+    // Verify Username tile IS present with copy action
+    expect(find.text('Username'), findsOneWidget);
     expect(find.text('user@example.com'), findsOneWidget);
     expect(find.byTooltip('Copy Username'), findsOneWidget);
 
-    // Verify Account/Phone Number tile is NOT present
-    expect(find.text('Account / Phone Number'), findsNothing);
+    // Verify Account Number tile is NOT present
+    expect(find.text('Account Number'), findsNothing);
+  });
+
+  testWidgets('VaultDetailSheet renders individual optional fields (Username, Email, Account, Phone, PIN, Password) conditionally',
+      (WidgetTester tester) async {
+    final encryptionService = EncryptionService(secureStorage: FakeSecureStorage());
+    encryptionService.setActiveKey('0123456789abcdef0123456789abcdef');
+
+    final pinEnc = encryptionService.encrypt('9988');
+    final passEnc = encryptionService.encrypt('ComplexP@ss!', customIvBase64: pinEnc.ivBase64);
+
+    final item = VaultItem(
+      id: 'maya-full',
+      title: 'Maya App',
+      username: 'maya_user',
+      email: 'maya@example.com',
+      accountNumber: '1092837465',
+      phoneNumber: '+639171112233',
+      pinEncrypted: pinEnc.cipherTextBase64,
+      passwordEncrypted: passEnc.cipherTextBase64,
+      iv: pinEnc.ivBase64,
+      category: 'Finance',
+      updatedAt: DateTime.now(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          encryptionServiceProvider.overrideWithValue(encryptionService),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: VaultDetailSheet(item: item),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Verify all individual fields are visible
+    expect(find.text('Username'), findsOneWidget);
+    expect(find.text('maya_user'), findsOneWidget);
+
+    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('maya@example.com'), findsOneWidget);
+
+    expect(find.text('Account Number'), findsOneWidget);
+    expect(find.text('1092837465'), findsOneWidget);
+
+    expect(find.text('Phone Number'), findsOneWidget);
+    expect(find.text('+639171112233'), findsOneWidget);
+
+    expect(find.text('PIN'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
   });
 
   testWidgets('VaultDetailSheet renders virtual Payment Card and dedicated fields correctly',

@@ -63,6 +63,53 @@ void main() {
       expect(fromMapItem, equals(testItem));
     });
 
+    test('should serialize to Supabase Map with all optional credential fields correctly', () {
+      final fullItem = VaultItem(
+        id: 'full-item-1',
+        title: 'Maya App',
+        username: 'maya_user',
+        email: 'user@maya.ph',
+        accountNumber: '1092837465',
+        phoneNumber: '+63 9171234567',
+        usernameEncrypted: 'enc_user',
+        passwordEncrypted: 'enc_pass',
+        pinEncrypted: 'enc_pin',
+        cardDetailsEnc: null,
+        iv: 'iv_val',
+        category: 'Finance',
+        notes: 'Maya wallet account',
+        isSynced: false,
+        updatedAt: testDate,
+        type: 'login',
+      );
+
+      final supabaseMap = fullItem.toSupabaseMap();
+      expect(supabaseMap['id'], 'full-item-1');
+      expect(supabaseMap['title'], 'Maya App');
+      expect(supabaseMap['username'], 'maya_user');
+      expect(supabaseMap['email'], 'user@maya.ph');
+      expect(supabaseMap['account_number'], '1092837465');
+      expect(supabaseMap['phone_number'], '+63 9171234567');
+      expect(supabaseMap['username_enc'], 'enc_user');
+      expect(supabaseMap['password_enc'], 'enc_pass');
+      expect(supabaseMap['pin_enc'], 'enc_pin');
+      expect(supabaseMap['card_details_enc'], isNull);
+      expect(supabaseMap['iv'], 'iv_val');
+      expect(supabaseMap['category'], 'Finance');
+      expect(supabaseMap['notes'], 'Maya wallet account');
+      expect(supabaseMap['is_deleted'], false);
+      expect(supabaseMap['type'], 'login');
+
+      final restoredFromSupabase = VaultItem.fromMap(supabaseMap);
+      expect(restoredFromSupabase.username, 'maya_user');
+      expect(restoredFromSupabase.email, 'user@maya.ph');
+      expect(restoredFromSupabase.accountNumber, '1092837465');
+      expect(restoredFromSupabase.phoneNumber, '+63 9171234567');
+      expect(restoredFromSupabase.pinEncrypted, 'enc_pin');
+      expect(restoredFromSupabase.usernameEncrypted, 'enc_user');
+      expect(restoredFromSupabase.passwordEncrypted, 'enc_pass');
+    });
+
     test('should serialize to JSON and deserialize from JSON correctly', () {
       final jsonStr = testItem.toJson();
       final fromJsonItem = VaultItem.fromJson(jsonStr);
