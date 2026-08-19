@@ -18,10 +18,8 @@ subprojects {
 subprojects {
     afterEvaluate {
         if (plugins.hasPlugin("com.android.application") || plugins.hasPlugin("com.android.library")) {
-            val android = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
-            android?.apply {
+            configure<com.android.build.gradle.BaseExtension> {
                 compileSdkVersion(36)
-                // Forcefully clear legacy hardcoded buildToolsVersion
                 buildToolsVersion("34.0.0")
             }
         }

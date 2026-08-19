@@ -349,6 +349,26 @@ void main() {
       expect(authNotifier.state.isOfflineOnlyMode, isFalse);
       expect(encryptionService.hasActiveKey, isFalse);
     });
+
+    test('resetSession clears storage credentials, in-memory keys, and resets state', () async {
+      await authNotifier.setupMasterPin('123456');
+      expect(authNotifier.state.status, AuthStatus.authenticated);
+      expect(await fakeStorage.read(key: StorageKeys.masterPinSaltKey), isNotNull);
+      expect(await fakeStorage.read(key: StorageKeys.masterPinHashKey), isNotNull);
+      expect(await fakeStorage.read(key: StorageKeys.masterKeyStorageKey), isNotNull);
+      expect(encryptionService.hasActiveKey, isTrue);
+
+      await authNotifier.resetSession();
+
+      expect(authNotifier.state.status, AuthStatus.uninitialized);
+      expect(authNotifier.state.masterKey, isNull);
+      expect(authNotifier.state.isOfflineOnlyMode, isFalse);
+      expect(encryptionService.hasActiveKey, isFalse);
+      expect(await fakeStorage.read(key: StorageKeys.masterPinSaltKey), isNull);
+      expect(await fakeStorage.read(key: StorageKeys.masterPinHashKey), isNull);
+      expect(await fakeStorage.read(key: StorageKeys.masterKeyStorageKey), isNull);
+    });
   });
 }
+
 

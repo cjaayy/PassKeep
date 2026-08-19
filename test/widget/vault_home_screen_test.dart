@@ -93,6 +93,15 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
       isOfflineOnlyMode: false,
     );
   }
+
+  @override
+  Future<void> resetSession() async {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
 }
 
 void main() {

@@ -90,7 +90,13 @@ class SupabaseUserNotifier extends StateNotifier<SupabaseUserState> {
     try {
       final cloudSalt = user.userMetadata?['master_pin_salt'] as String?;
       if (cloudSalt != null && cloudSalt.isNotEmpty) {
-        // Cloud has a salt: save it to local secure storage
+        final localSalt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
+        // If the cloud salt is different from current local salt,
+        // clear the stale local PIN hash and stored master key to prevent hash/salt mismatch lockout
+        if (localSalt != cloudSalt) {
+          await _secureStorage.delete(key: StorageKeys.masterPinHashKey);
+          await _secureStorage.delete(key: StorageKeys.masterKeyStorageKey);
+        }
         await _secureStorage.write(key: StorageKeys.masterPinSaltKey, value: cloudSalt);
       } else {
         // Cloud has no salt: upload local salt if present

@@ -38,6 +38,19 @@ class FakeSecureStorage extends Fake implements FlutterSecureStorage {
       _data.remove(key);
     }
   }
+
+  @override
+  Future<void> delete({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _data.remove(key);
+  }
 }
 
 class FakeSupabaseAuthDataSource implements ISupabaseAuthDataSource {
@@ -201,6 +214,44 @@ void main() {
       // Verify salt was saved to secure storage
       final storedSalt = await fakeSecureStorage.read(key: StorageKeys.masterPinSaltKey);
       expect(storedSalt, 'restored_cloud_salt_abc123');
+    });
+
+    test('signIn with differing cloud salt clears stale local PIN hash and master key to prevent mismatch lockout', () async {
+      // Local storage has stale offline salt, hash, and master key
+      await fakeSecureStorage.write(
+        key: StorageKeys.masterPinSaltKey,
+        value: 'old_offline_salt',
+      );
+      await fakeSecureStorage.write(
+        key: StorageKeys.masterPinHashKey,
+        value: 'old_offline_pin_hash',
+      );
+      await fakeSecureStorage.write(
+        key: StorageKeys.masterKeyStorageKey,
+        value: 'old_offline_master_key',
+      );
+
+      // Cloud user has a different salt
+      fakeAuthDataSource.mockUser = sb.User(
+        id: 'cloud-user-diff-salt',
+        appMetadata: {},
+        userMetadata: {'master_pin_salt': 'new_cloud_salt_999'},
+        aud: 'authenticated',
+        email: 'diffsalt@example.com',
+        createdAt: DateTime.now().toIso8601String(),
+      );
+
+      final result = await notifier.signIn(
+        email: 'diffsalt@example.com',
+        password: 'securePassword123',
+      );
+
+      expect(result, isTrue);
+      // Verify new cloud salt was saved
+      expect(await fakeSecureStorage.read(key: StorageKeys.masterPinSaltKey), 'new_cloud_salt_999');
+      // Verify stale hash and master key were cleared to prevent mismatch lockout
+      expect(await fakeSecureStorage.read(key: StorageKeys.masterPinHashKey), isNull);
+      expect(await fakeSecureStorage.read(key: StorageKeys.masterKeyStorageKey), isNull);
     });
 
     test('signIn uploads local salt to cloud metadata if cloud has no salt', () async {

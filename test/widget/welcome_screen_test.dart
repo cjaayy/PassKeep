@@ -139,6 +139,15 @@ class WelcomeScreenFakeAuthNotifier extends StateNotifier<AuthState>
       isOfflineOnlyMode: false,
     );
   }
+
+  @override
+  Future<void> resetSession() async {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
 }
 
 void main() {

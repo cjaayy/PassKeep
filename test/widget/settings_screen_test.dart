@@ -43,6 +43,19 @@ class FakeSecureStorage extends Fake implements FlutterSecureStorage {
       _data.remove(key);
     }
   }
+
+  @override
+  Future<void> delete({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    _data.remove(key);
+  }
 }
 
 class FakeSupabaseUserNotifier extends StateNotifier<SupabaseUserState>
@@ -117,6 +130,15 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
 
   @override
   void signOut() {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
+
+  @override
+  Future<void> resetSession() async {
     state = state.copyWith(
       status: AuthStatus.uninitialized,
       clearMasterKey: true,

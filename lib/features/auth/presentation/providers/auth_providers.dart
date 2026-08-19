@@ -514,6 +514,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
       isOfflineOnlyMode: false,
     );
   }
+
+  /// Completely resets the active authentication session:
+  /// 1. Clears in-memory active key from EncryptionService.
+  /// 2. Deletes local Master PIN salt, PIN hash, and master key from FlutterSecureStorage.
+  /// 3. Resets AuthState to uninitialized.
+  Future<void> resetSession() async {
+    _encryptionService.clearActiveKey();
+    try {
+      await _secureStorage.delete(key: StorageKeys.masterPinSaltKey);
+      await _secureStorage.delete(key: StorageKeys.masterPinHashKey);
+      await _encryptionService.clearMasterKey();
+    } catch (_) {}
+    state = const AuthState(
+      status: AuthStatus.uninitialized,
+      isBiometricsAvailable: false,
+      errorMessage: null,
+      masterKey: null,
+      isOfflineOnlyMode: false,
+    );
+  }
 }
 
 /// Provider for [AuthNotifier]

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../vault/presentation/providers/vault_providers.dart';
 import '../providers/auth_providers.dart';
+import '../providers/supabase_auth_providers.dart';
 
 /// Lock screen shown when the vault is locked.
 /// Prompts for Master PIN or Biometrics to decrypt.
@@ -46,6 +48,58 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
 
   Future<void> _onBiometricPressed() async {
     await ref.read(authNotifierProvider.notifier).unlockWithBiometrics();
+  }
+
+  Future<void> _handleResetSession(BuildContext context) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightSurface,
+        title: Text(
+          'Reset Session / Sign Out',
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'This will sign you out and clear local cached session keys. Your cloud data remains safe in Supabase.',
+          style: TextStyle(
+            color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? const Color(0xFF3F3F46) : const Color(0xFFE4E4E7),
+              foregroundColor: AppTheme.darkDestructive,
+              elevation: 0,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset & Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await ref.read(supabaseUserProvider.notifier).signOut();
+      ref.read(isVaultSessionUnlockedProvider.notifier).state = false;
+      await ref.read(authNotifierProvider.notifier).resetSession();
+      if (context.mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
   }
 
   @override
@@ -141,6 +195,24 @@ class _AuthLockScreenState extends ConsumerState<AuthLockScreen> {
 
               // Keypad
               _buildKeypad(authState.isBiometricsAvailable),
+
+              const SizedBox(height: 16),
+
+              // Emergency Reset / Sign Out button
+              TextButton(
+                onPressed: () => _handleResetSession(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: textMuted,
+                ),
+                child: const Text(
+                  'Having trouble? Reset Session / Sign Out',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 12),
             ],

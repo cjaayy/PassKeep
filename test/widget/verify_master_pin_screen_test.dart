@@ -66,6 +66,15 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
       isOfflineOnlyMode: false,
     );
   }
+
+  @override
+  Future<void> resetSession() async {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
 }
 
 class FakeLocalDataSource implements IVaultLocalDataSource {
@@ -198,6 +207,63 @@ void main() {
     expect(fakeAuth.state.status, AuthStatus.authenticated);
     expect(fakeSync.syncCallCount, 1);
   });
+
+  testWidgets('VerifyMasterPinScreen shows reset session dialog and resets on confirm',
+      (WidgetTester tester) async {
+    final fakeLocal = FakeLocalDataSource();
+    final fakeSync = FakeSyncNotifier();
+    final fakeAuth = FakeAuthNotifier(
+      const AuthState(status: AuthStatus.locked),
+    );
+    final fakeSupabase = FakeSupabaseUserNotifier(
+      const SupabaseUserState(
+        user: sb.User(
+          id: 'user-789',
+          appMetadata: {},
+          userMetadata: {},
+          aud: 'authenticated',
+          createdAt: '2026-01-01',
+          email: 'lockedout@passkeep.io',
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vaultLocalDataSourceProvider.overrideWithValue(fakeLocal),
+          syncNotifierProvider.overrideWith((ref) => fakeSync),
+          authNotifierProvider.overrideWith((ref) => fakeAuth),
+          supabaseUserProvider.overrideWith((ref) => fakeSupabase),
+        ],
+        child: const MaterialApp(
+          home: VerifyMasterPinScreen(),
+        ),
+      ),
+    );
+
+    final resetBtn = find.text('Having trouble? Reset Session / Sign Out');
+    expect(resetBtn, findsOneWidget);
+    await tester.ensureVisible(resetBtn);
+    await tester.tap(resetBtn);
+    await tester.pumpAndSettle();
+
+    // Verify dialog
+    expect(find.text('Reset Session / Sign Out'), findsOneWidget);
+    expect(
+      find.text('This will sign you out and clear local cached session keys. Your cloud data remains safe in Supabase.'),
+      findsOneWidget,
+    );
+
+    // Tap Reset & Sign Out
+    final confirmBtn = find.widgetWithText(ElevatedButton, 'Reset & Sign Out');
+    await tester.tap(confirmBtn);
+    await tester.pumpAndSettle();
+
+    // Verify auth status reset to uninitialized and supabase user signed out
+    expect(fakeAuth.state.status, AuthStatus.uninitialized);
+    expect(fakeSupabase.state.user, isNull);
+  });
 }
 
 class FakeSupabaseUserNotifier extends StateNotifier<SupabaseUserState>
@@ -211,8 +277,11 @@ class FakeSupabaseUserNotifier extends StateNotifier<SupabaseUserState>
   Future<bool> signUp({required String email, required String password}) async => true;
 
   @override
-  Future<void> signOut() async {}
+  Future<void> signOut() async {
+    state = const SupabaseUserState.initial();
+  }
 
   @override
   Future<void> syncLocalSaltToCloud(String salt) async {}
 }
+
