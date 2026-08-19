@@ -111,6 +111,18 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   void setOfflineOnlyMode(bool isOffline) {
     state = state.copyWith(isOfflineOnlyMode: isOffline);
   }
+
+  @override
+  Future<bool> hasLocalPinConfigured() async => true;
+
+  @override
+  void signOut() {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
 }
 
 class FakeLocalDataSource implements IVaultLocalDataSource {
@@ -459,4 +471,58 @@ void main() {
     expect(confirmed, isFalse);
     expect(find.text('Wipe Remote Vault?'), findsNothing);
   });
+
+  testWidgets('Signing Out prompts confirmation and resets auth/session',
+      (WidgetTester tester) async {
+    final fakeSupabase = FakeSupabaseUserNotifier(
+      const SupabaseUserState(
+        user: sb.User(
+          id: 'user-123',
+          appMetadata: {},
+          userMetadata: {},
+          aud: 'authenticated',
+          createdAt: '2026-01-01',
+          email: 'test@passkeep.io',
+        ),
+      ),
+    );
+    final fakeAuth = FakeAuthNotifier(
+      const AuthState(status: AuthStatus.authenticated),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          supabaseUserProvider.overrideWith((ref) => fakeSupabase),
+          authNotifierProvider.overrideWith((ref) => fakeAuth),
+          vaultLocalDataSourceProvider.overrideWithValue(FakeLocalDataSource()),
+          secureStorageProvider.overrideWithValue(FakeSecureStorage()),
+        ],
+        child: const MaterialApp(
+          home: SettingsScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('test@passkeep.io'), findsOneWidget);
+
+    // Tap sign out button
+    final signOutBtn = find.byTooltip('Sign Out');
+    expect(signOutBtn, findsOneWidget);
+    await tester.tap(signOutBtn);
+    await tester.pumpAndSettle();
+
+    // Verify confirmation dialog
+    expect(find.text('Sign Out from Cloud?'), findsOneWidget);
+
+    // Tap confirm Sign Out in dialog
+    final confirmBtn = find.widgetWithText(ElevatedButton, 'Sign Out');
+    await tester.tap(confirmBtn);
+    await tester.pumpAndSettle();
+
+    // Verify auth state reset to uninitialized
+    expect(fakeAuth.state.status, AuthStatus.uninitialized);
+    expect(fakeSupabase.state.user, isNull);
+  });
 }
+

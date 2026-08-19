@@ -45,6 +45,6 @@ void main() {
 
     expect(find.text('PassKeep'), findsOneWidget);
     expect(find.text('Create Account'), findsOneWidget);
-    expect(find.text('Continue Offline (Local Storage Only)'), findsOneWidget);
+    expect(find.text('Continue Offline'), findsOneWidget);
   });
 }

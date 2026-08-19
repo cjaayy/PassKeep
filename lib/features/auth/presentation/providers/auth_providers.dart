@@ -483,6 +483,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isOfflineOnlyMode: isOffline);
   }
 
+  /// Checks whether a local Master PIN salt and hash are configured in secure storage
+  Future<bool> hasLocalPinConfigured() async {
+    try {
+      final salt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
+      final pinHash = await _secureStorage.read(key: StorageKeys.masterPinHashKey);
+      return salt != null && salt.isNotEmpty && pinHash != null && pinHash.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Locks the vault and clears active keys from memory
   void lockVault() {
     _encryptionService.clearActiveKey();
@@ -490,6 +501,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       status: AuthStatus.locked,
       errorMessage: null,
       clearMasterKey: true,
+    );
+  }
+
+  /// Signs out: clears active encryption keys, resets vault session, and transitions to uninitialized
+  void signOut() {
+    _encryptionService.clearActiveKey();
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      errorMessage: null,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
     );
   }
 }

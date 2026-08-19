@@ -184,14 +184,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (shouldSignOut == true && mounted) {
       await ref.read(supabaseUserProvider.notifier).signOut();
+      ref.read(isVaultSessionUnlockedProvider.notifier).state = false;
+      ref.read(authNotifierProvider.notifier).signOut();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Signed out from Supabase cloud.'),
-            backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     }
   }

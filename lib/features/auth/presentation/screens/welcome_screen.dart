@@ -41,9 +41,20 @@ class WelcomeScreen extends ConsumerWidget {
     }
   }
 
-  void _handleContinueOffline(BuildContext context, WidgetRef ref) {
-    ref.read(authNotifierProvider.notifier).setOfflineOnlyMode(true);
-    _navigateToPinSetup(context);
+  Future<void> _handleContinueOffline(BuildContext context, WidgetRef ref) async {
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    authNotifier.setOfflineOnlyMode(true);
+
+    final hasPin = await authNotifier.hasLocalPinConfigured();
+    if (!context.mounted) return;
+
+    if (hasPin) {
+      // Existing local vault: transition to lock screen for PIN verification
+      authNotifier.lockVault();
+    } else {
+      // First-time setup: route to PIN creation
+      _navigateToPinSetup(context);
+    }
   }
 
   @override
@@ -178,19 +189,29 @@ class WelcomeScreen extends ConsumerWidget {
                     onPressed: () => _handleCloudAuth(context, ref, initialTabIndex: 0),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                // Continue Offline Button
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    foregroundColor: textMuted,
+                // Continue Offline / Use Local Vault Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: textMuted,
+                      side: BorderSide(
+                        color: isDark ? const Color(0xFF3F3F46) : const Color(0xFFD4D4D8),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.cloud_off_rounded, size: 18),
+                    label: const Text(
+                      'Continue Offline',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    onPressed: () => _handleContinueOffline(context, ref),
                   ),
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                  label: const Text(
-                    'Continue Offline (Local Storage Only)',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
-                  onPressed: () => _handleContinueOffline(context, ref),
                 ),
                 const SizedBox(height: 8),
               ],

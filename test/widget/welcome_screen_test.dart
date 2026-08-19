@@ -89,12 +89,69 @@ class FakeSyncNotifier extends StateNotifier<SyncState> implements SyncNotifier 
       );
 }
 
+class WelcomeScreenFakeAuthNotifier extends StateNotifier<AuthState>
+    implements AuthNotifier {
+  WelcomeScreenFakeAuthNotifier({bool hasPin = false})
+      : _hasPin = hasPin,
+        super(const AuthState(status: AuthStatus.uninitialized));
+
+  final bool _hasPin;
+
+  @override
+  Future<void> checkAuthState() async {}
+
+  @override
+  Future<bool> setupMasterPin(String pin) async => true;
+
+  @override
+  Future<bool> unlockWithPin(String pin) async => true;
+
+  @override
+  Future<bool> unlockWithExistingPin(String pin) async => true;
+
+  @override
+  Future<bool> verifyMasterPin(String pin) async => true;
+
+  @override
+  Future<bool> updateMasterPin(String currentPin, String newPin) async => true;
+
+  @override
+  Future<bool> unlockWithBiometrics() async => true;
+
+  @override
+  void lockVault() {
+    state = state.copyWith(status: AuthStatus.locked);
+  }
+
+  @override
+  void setOfflineOnlyMode(bool isOffline) {
+    state = state.copyWith(isOfflineOnlyMode: isOffline);
+  }
+
+  @override
+  Future<bool> hasLocalPinConfigured() async => _hasPin;
+
+  @override
+  void signOut() {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
+}
+
 void main() {
   testWidgets('WelcomeScreen renders branding, value props, and all action buttons',
       (WidgetTester tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith(
+            (ref) => WelcomeScreenFakeAuthNotifier(),
+          ),
+        ],
+        child: const MaterialApp(
           home: WelcomeScreen(),
         ),
       ),
@@ -113,23 +170,25 @@ void main() {
     // Verify action buttons
     expect(find.text('Create Account'), findsOneWidget);
     expect(find.text('Sign In to Existing Account'), findsOneWidget);
-    expect(find.text('Continue Offline (Local Storage Only)'), findsOneWidget);
+    expect(find.text('Continue Offline'), findsOneWidget);
   });
 
-  testWidgets('Tapping Continue Offline navigates to SetupMasterPinScreen',
+  testWidgets('Tapping Continue Offline with no local PIN navigates to SetupMasterPinScreen',
       (WidgetTester tester) async {
-    final container = ProviderContainer();
+    final fakeAuth = WelcomeScreenFakeAuthNotifier(hasPin: false);
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith((ref) => fakeAuth),
+        ],
         child: const MaterialApp(
           home: WelcomeScreen(),
         ),
       ),
     );
 
-    final continueBtn = find.text('Continue Offline (Local Storage Only)');
+    final continueBtn = find.text('Continue Offline');
     expect(continueBtn, findsOneWidget);
 
     await tester.ensureVisible(continueBtn);
@@ -137,14 +196,41 @@ void main() {
     await tester.tap(continueBtn);
     await tester.pumpAndSettle();
 
-    // Verify navigation to PIN setup screen
+    // Since FakeAuthNotifier has _hasPin = false (no PIN configured),
+    // it should navigate to SetupMasterPinScreen
     expect(find.byType(SetupMasterPinScreen), findsOneWidget);
     expect(find.text('Create Master PIN'), findsOneWidget);
 
     // Verify offlineOnly state was set
-    expect(container.read(authNotifierProvider).isOfflineOnlyMode, isTrue);
+    expect(fakeAuth.state.isOfflineOnlyMode, isTrue);
+  });
 
-    container.dispose();
+  testWidgets('Tapping Continue Offline with existing local PIN locks vault to prompt for Master PIN',
+      (WidgetTester tester) async {
+    final fakeAuth = WelcomeScreenFakeAuthNotifier(hasPin: true);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authNotifierProvider.overrideWith((ref) => fakeAuth),
+        ],
+        child: const MaterialApp(
+          home: WelcomeScreen(),
+        ),
+      ),
+    );
+
+    final continueBtn = find.text('Continue Offline');
+    expect(continueBtn, findsOneWidget);
+
+    await tester.ensureVisible(continueBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(continueBtn);
+    await tester.pumpAndSettle();
+
+    // With existing PIN, lockVault() is called (status becomes locked)
+    expect(fakeAuth.state.status, AuthStatus.locked);
+    expect(fakeAuth.state.isOfflineOnlyMode, isTrue);
   });
 
   testWidgets('Tapping Create Account opens SupabaseAuthSheet with Register tab',

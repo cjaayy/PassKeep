@@ -322,5 +322,33 @@ void main() {
       expect(success, isFalse);
       expect(authNotifier.state.errorMessage, contains('Incorrect Master PIN'));
     });
+
+    test('hasLocalPinConfigured returns true when salt and hash exist, false otherwise', () async {
+      await authNotifier.checkAuthState();
+      expect(await authNotifier.hasLocalPinConfigured(), isFalse);
+
+      await fakeStorage.write(key: StorageKeys.masterPinSaltKey, value: 'salt123');
+      expect(await authNotifier.hasLocalPinConfigured(), isFalse);
+
+      await fakeStorage.write(key: StorageKeys.masterPinHashKey, value: 'hash123');
+      expect(await authNotifier.hasLocalPinConfigured(), isTrue);
+    });
+
+    test('signOut clears active encryption key, masterKey, and transitions to uninitialized', () async {
+      await authNotifier.setupMasterPin('123456');
+      expect(authNotifier.state.status, AuthStatus.authenticated);
+      expect(authNotifier.state.masterKey, isNotNull);
+      expect(encryptionService.hasActiveKey, isTrue);
+
+      authNotifier.setOfflineOnlyMode(true);
+      expect(authNotifier.state.isOfflineOnlyMode, isTrue);
+
+      authNotifier.signOut();
+      expect(authNotifier.state.status, AuthStatus.uninitialized);
+      expect(authNotifier.state.masterKey, isNull);
+      expect(authNotifier.state.isOfflineOnlyMode, isFalse);
+      expect(encryptionService.hasActiveKey, isFalse);
+    });
   });
 }
+

@@ -54,6 +54,18 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   void setOfflineOnlyMode(bool isOffline) {
     state = state.copyWith(isOfflineOnlyMode: isOffline);
   }
+
+  @override
+  Future<bool> hasLocalPinConfigured() async => true;
+
+  @override
+  void signOut() {
+    state = state.copyWith(
+      status: AuthStatus.uninitialized,
+      clearMasterKey: true,
+      isOfflineOnlyMode: false,
+    );
+  }
 }
 
 class FakeLocalDataSource implements IVaultLocalDataSource {
