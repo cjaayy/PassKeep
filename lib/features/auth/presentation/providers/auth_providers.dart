@@ -216,6 +216,54 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Restores vault access on a fresh install/device using an existing Master PIN and fetched salt
+  Future<bool> unlockWithExistingPin(String pin) async {
+    if (pin.length != 6) {
+      state = state.copyWith(errorMessage: 'PIN must be exactly 6 digits');
+      return false;
+    }
+
+    state = state.copyWith(errorMessage: null);
+
+    try {
+      final salt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
+      if (salt == null || salt.isEmpty) {
+        state = state.copyWith(
+          status: AuthStatus.uninitialized,
+          errorMessage: 'No existing Master PIN salt found.',
+        );
+        return false;
+      }
+
+      final storedHash = await _secureStorage.read(key: StorageKeys.masterPinHashKey);
+      final computedHash = sha256.convert(utf8.encode('$pin:$salt')).toString();
+
+      // If stored hash exists, verify it matches
+      if (storedHash != null && storedHash.isNotEmpty && computedHash != storedHash) {
+        state = state.copyWith(errorMessage: 'Incorrect Master PIN. Please try again.');
+        return false;
+      }
+
+      // Derive 256-bit AES master key
+      final masterKey = await KeyDerivation.deriveKey256Async(password: pin, salt: salt);
+
+      // Persist hash & master key to local secure storage
+      await _secureStorage.write(key: StorageKeys.masterPinHashKey, value: computedHash);
+      await _encryptionService.saveMasterKeyToStorage(masterKey);
+      _encryptionService.setActiveKey(masterKey);
+
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        masterKey: masterKey,
+        errorMessage: null,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Failed to restore Master PIN: ${e.toString()}');
+      return false;
+    }
+  }
+
   /// Verifies if a given Master PIN is correct and ensures the active encryption key is loaded
   Future<bool> verifyMasterPin(String pin) async {
     try {

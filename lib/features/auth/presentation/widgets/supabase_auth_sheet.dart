@@ -249,14 +249,14 @@ class _SupabaseAuthSheetState extends ConsumerState<SupabaseAuthSheet>
 
                 // Tab Views
                 SizedBox(
-                  height: 280,
+                  height: 340,
                   child: TabBarView(
                     controller: _tabController,
                     children: [
                       // Sign In Form
-                      _buildSignInTab(userState.isLoading),
+                      SingleChildScrollView(child: _buildSignInTab(userState.isLoading)),
                       // Sign Up Form
-                      _buildSignUpTab(userState.isLoading),
+                      SingleChildScrollView(child: _buildSignUpTab(userState.isLoading)),
                     ],
                   ),
                 ),

@@ -268,5 +268,59 @@ void main() {
       expect(updateSuccess, isFalse);
       expect(authNotifier.state.errorMessage, contains('exactly 6 digits'));
     });
+
+    test('unlockWithExistingPin restores session and stores hash/masterKey when remote salt is present', () async {
+      // Simulate remote salt saved to secure storage during cloud sign-in on fresh install
+      const remoteSalt = 'remote_fetched_salt_1234';
+      await fakeStorage.write(
+        key: StorageKeys.masterPinSaltKey,
+        value: remoteSalt,
+      );
+
+      // Verify no hash exists yet
+      expect(await fakeStorage.read(key: StorageKeys.masterPinHashKey), isNull);
+
+      final success = await authNotifier.unlockWithExistingPin('654321');
+      expect(success, isTrue);
+      expect(authNotifier.state.status, AuthStatus.authenticated);
+
+      // Hash and master key are now persisted
+      final storedHash = await fakeStorage.read(key: StorageKeys.masterPinHashKey);
+      expect(storedHash, isNotNull);
+
+      // Verify active key works for encryption/decryption
+      final iv = encryptionService.generateRandomIv();
+      final enc = encryptionService.encrypt('restored_secret', customIvBase64: iv);
+      final dec = encryptionService.decrypt(cipherTextBase64: enc.cipherTextBase64, ivBase64: iv);
+      expect(dec, 'restored_secret');
+    });
+
+    test('unlockWithExistingPin fails if salt is not present in storage', () async {
+      await authNotifier.checkAuthState();
+      final success = await authNotifier.unlockWithExistingPin('123456');
+      expect(success, isFalse);
+      expect(authNotifier.state.errorMessage, contains('No existing Master PIN salt found'));
+    });
+
+    test('unlockWithExistingPin fails if PIN length is not 6 digits', () async {
+      await authNotifier.checkAuthState();
+      await fakeStorage.write(
+        key: StorageKeys.masterPinSaltKey,
+        value: 'some_salt',
+      );
+
+      final success = await authNotifier.unlockWithExistingPin('1234');
+      expect(success, isFalse);
+      expect(authNotifier.state.errorMessage, contains('exactly 6 digits'));
+    });
+
+    test('unlockWithExistingPin fails if stored hash exists and PIN is incorrect', () async {
+      await authNotifier.setupMasterPin('123456');
+      authNotifier.lockVault();
+
+      final success = await authNotifier.unlockWithExistingPin('999999');
+      expect(success, isFalse);
+      expect(authNotifier.state.errorMessage, contains('Incorrect Master PIN'));
+    });
   });
 }

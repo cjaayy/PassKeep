@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_providers.dart';
+import '../providers/supabase_auth_providers.dart';
 import '../widgets/supabase_auth_sheet.dart';
 import 'setup_master_pin_screen.dart';
+import 'verify_master_pin_screen.dart';
 
 /// Initial Welcome & Onboarding Screen for PassKeep
 class WelcomeScreen extends ConsumerWidget {
@@ -16,7 +18,7 @@ class WelcomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleCloudAuth(BuildContext context, {required int initialTabIndex}) async {
+  Future<void> _handleCloudAuth(BuildContext context, WidgetRef ref, {required int initialTabIndex}) async {
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -25,7 +27,17 @@ class WelcomeScreen extends ConsumerWidget {
     );
 
     if (result == true && context.mounted) {
-      _navigateToPinSetup(context);
+      final user = ref.read(supabaseUserProvider).user;
+      final remoteSalt = user?.userMetadata?['master_pin_salt'] as String?;
+
+      if (remoteSalt != null && remoteSalt.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const VerifyMasterPinScreen()),
+        );
+      } else {
+        _navigateToPinSetup(context);
+      }
     }
   }
 
@@ -142,7 +154,7 @@ class WelcomeScreen extends ConsumerWidget {
                       'Create Account',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                     ),
-                    onPressed: () => _handleCloudAuth(context, initialTabIndex: 1),
+                    onPressed: () => _handleCloudAuth(context, ref, initialTabIndex: 1),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -163,7 +175,7 @@ class WelcomeScreen extends ConsumerWidget {
                       'Sign In to Existing Account',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
-                    onPressed: () => _handleCloudAuth(context, initialTabIndex: 0),
+                    onPressed: () => _handleCloudAuth(context, ref, initialTabIndex: 0),
                   ),
                 ),
                 const SizedBox(height: 8),
