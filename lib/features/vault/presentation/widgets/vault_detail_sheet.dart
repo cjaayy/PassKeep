@@ -286,13 +286,31 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
     final displayCardNumber = _isCardNumberVisible
         ? formattedNumber
         : _cardDetails.maskedCardNumber;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B), // Sleek monochromatic dark virtual card
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF27272A), Color(0xFF18181B)]
+              : const [Color(0xFF0F172A), Color(0xFF1E293B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3F3F46) : const Color(0xFF334155),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,7 +322,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF27272A),
+                  color: isDark ? const Color(0xFF18181B) : const Color(0xFF0F172A),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -336,7 +354,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                 child: Text(
                   widget.item.title.toUpperCase(),
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFFFAFAFA),
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
@@ -345,7 +363,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Icon(Icons.contactless_rounded, color: Colors.white38, size: 22),
+              const Icon(Icons.contactless_rounded, color: Color(0xFFA1A1AA), size: 22),
             ],
           ),
           const SizedBox(height: 18),
@@ -377,7 +395,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
               Text(
                 displayCardNumber,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFFFAFAFA),
                   fontSize: 17,
                   letterSpacing: 2.2,
                   fontFamily: 'monospace',
@@ -387,7 +405,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
               IconButton(
                 icon: Icon(
                   _isCardNumberVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                  color: Colors.white60,
+                  color: const Color(0xFFA1A1AA),
                   size: 18,
                 ),
                 onPressed: () => setState(() => _isCardNumberVisible = !_isCardNumberVisible),
@@ -410,7 +428,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                     const Text(
                       'CARDHOLDER',
                       style: TextStyle(
-                        color: Colors.white38,
+                        color: Color(0xFFA1A1AA),
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.0,
@@ -422,7 +440,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                           ? _cardDetails.cardholderName.toUpperCase()
                           : 'VALUED CARDHOLDER',
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFFFAFAFA),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.8,
@@ -442,7 +460,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   const Text(
                     'EXPIRES',
                     style: TextStyle(
-                      color: Colors.white38,
+                      color: Color(0xFFA1A1AA),
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.0,
@@ -452,7 +470,7 @@ class _VaultDetailSheetState extends ConsumerState<VaultDetailSheet> {
                   Text(
                     _cardDetails.expiryDate.isNotEmpty ? _cardDetails.expiryDate : 'MM/YY',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFFFAFAFA),
                       fontSize: 12,
                       fontFamily: 'monospace',
                       fontWeight: FontWeight.w600,
