@@ -4,6 +4,8 @@ import 'package:local_auth/local_auth.dart';
 import 'package:passkeep/core/constants/storage_keys.dart';
 import 'package:passkeep/core/security/encryption_service.dart';
 import 'package:passkeep/features/auth/presentation/providers/auth_providers.dart';
+import 'package:passkeep/features/vault/data/datasources/vault_local_datasource.dart';
+import 'package:passkeep/features/vault/data/models/vault_item.dart';
 
 class FakeSecureStorage extends Fake implements FlutterSecureStorage {
   final Map<String, String> _storage = {};
@@ -72,23 +74,53 @@ class FakeLocalAuth extends Fake implements LocalAuthentication {
   }
 }
 
+class FakeAuthLocalDataSource implements IVaultLocalDataSource {
+  final List<VaultItem> items = [];
+
+  @override
+  Future<List<VaultItem>> getAllVaultItems() async => List.from(items);
+
+  @override
+  Future<VaultItem?> getVaultItemById(String id) async =>
+      items.firstWhere((i) => i.id == id);
+
+  @override
+  Future<void> saveVaultItem(VaultItem item) async {
+    final index = items.indexWhere((i) => i.id == item.id);
+    if (index != -1) {
+      items[index] = item;
+    } else {
+      items.add(item);
+    }
+  }
+
+  @override
+  Future<void> deleteVaultItem(String id) async => items.removeWhere((i) => i.id == id);
+
+  @override
+  Future<void> clearAll() async => items.clear();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late FakeSecureStorage fakeStorage;
   late EncryptionService encryptionService;
   late FakeLocalAuth fakeLocalAuth;
+  late FakeAuthLocalDataSource fakeLocalDataSource;
   late AuthNotifier authNotifier;
 
   setUp(() {
     fakeStorage = FakeSecureStorage();
     encryptionService = EncryptionService(secureStorage: fakeStorage);
     fakeLocalAuth = FakeLocalAuth();
+    fakeLocalDataSource = FakeAuthLocalDataSource();
 
     authNotifier = AuthNotifier(
       secureStorage: fakeStorage,
       encryptionService: encryptionService,
       localAuth: fakeLocalAuth,
+      localDataSource: fakeLocalDataSource,
     );
   });
 
@@ -162,6 +194,79 @@ void main() {
       expect(await authNotifier.verifyMasterPin('123456'), isTrue);
       expect(await authNotifier.verifyMasterPin('654321'), isFalse);
       expect(await authNotifier.verifyMasterPin('000000'), isFalse);
+    });
+
+    test('updateMasterPin successfully re-encrypts vault items and updates salt/hash', () async {
+      // 1. Initial setup with PIN 111111
+      await authNotifier.setupMasterPin('111111');
+      final initialSalt = await fakeStorage.read(key: StorageKeys.masterPinSaltKey);
+      final initialHash = await fakeStorage.read(key: StorageKeys.masterPinHashKey);
+
+      // Create an item encrypted with initial key
+      final initialIv = encryptionService.generateRandomIv();
+      final encUsername = encryptionService.encrypt('my_user', customIvBase64: initialIv);
+      final encPassword = encryptionService.encrypt('my_pass_123', customIvBase64: initialIv);
+
+      final testItem = VaultItem(
+        id: 'item-1',
+        title: 'GitHub',
+        type: 'login',
+        usernameEncrypted: encUsername.cipherTextBase64,
+        passwordEncrypted: encPassword.cipherTextBase64,
+        iv: initialIv,
+        category: 'Work',
+        updatedAt: DateTime.now(),
+      );
+      fakeLocalDataSource.items.add(testItem);
+
+      // 2. Change PIN to 222222
+      final updateSuccess = await authNotifier.updateMasterPin('111111', '222222');
+      expect(updateSuccess, isTrue);
+
+      // Verify salt and hash have changed
+      final newSalt = await fakeStorage.read(key: StorageKeys.masterPinSaltKey);
+      final newHash = await fakeStorage.read(key: StorageKeys.masterPinHashKey);
+      expect(newSalt, isNotNull);
+      expect(newSalt, isNot(equals(initialSalt)));
+      expect(newHash, isNotNull);
+      expect(newHash, isNot(equals(initialHash)));
+
+      // Verify that old PIN no longer verifies
+      expect(await authNotifier.verifyMasterPin('111111'), isFalse);
+      expect(await authNotifier.verifyMasterPin('222222'), isTrue);
+
+      // Verify decrypted vault items decrypt cleanly with active (new) key
+      final updatedItem = fakeLocalDataSource.items.first;
+      final decryptedUser = encryptionService.decrypt(
+        cipherTextBase64: updatedItem.usernameEncrypted,
+        ivBase64: updatedItem.iv,
+      );
+      final decryptedPass = encryptionService.decrypt(
+        cipherTextBase64: updatedItem.passwordEncrypted,
+        ivBase64: updatedItem.iv,
+      );
+
+      expect(decryptedUser, 'my_user');
+      expect(decryptedPass, 'my_pass_123');
+    });
+
+    test('updateMasterPin fails if current PIN is incorrect', () async {
+      await authNotifier.setupMasterPin('123456');
+
+      final updateSuccess = await authNotifier.updateMasterPin('999999', '654321');
+      expect(updateSuccess, isFalse);
+      expect(authNotifier.state.errorMessage, contains('Current Master PIN is incorrect'));
+
+      // Old PIN still works
+      expect(await authNotifier.verifyMasterPin('123456'), isTrue);
+    });
+
+    test('updateMasterPin fails if new PIN is not 6 digits', () async {
+      await authNotifier.setupMasterPin('123456');
+
+      final updateSuccess = await authNotifier.updateMasterPin('123456', '123');
+      expect(updateSuccess, isFalse);
+      expect(authNotifier.state.errorMessage, contains('exactly 6 digits'));
     });
   });
 }

@@ -64,6 +64,9 @@ class FakeAuthNotifier extends StateNotifier<AuthState> implements AuthNotifier 
   Future<bool> verifyMasterPin(String pin) async => true;
 
   @override
+  Future<bool> updateMasterPin(String currentPin, String newPin) async => true;
+
+  @override
   Future<bool> unlockWithBiometrics() async => true;
 
   @override

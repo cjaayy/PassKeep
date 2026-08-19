@@ -9,6 +9,7 @@ import '../../../auth/presentation/widgets/supabase_auth_sheet.dart';
 import '../../../sync/presentation/providers/sync_providers.dart';
 import '../../../vault/presentation/providers/vault_providers.dart';
 import '../providers/settings_providers.dart';
+import '../widgets/change_master_pin_sheet.dart';
 
 /// Settings & Vault Management Screen
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -228,6 +229,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _handleChangeMasterPin() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final updated = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const ChangeMasterPinSheet(),
+    );
+
+    if (updated == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Text('Master PIN updated successfully!'),
+            ],
+          ),
+          backgroundColor: isDark ? AppTheme.darkSurface : AppTheme.lightPrimary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -594,6 +621,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildSectionHeader('Security & Access'),
           _buildCard(
             children: [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: badgeBgColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.pin_outlined, color: primaryTextColor),
+                ),
+                title: Text('Change Master PIN', style: TextStyle(color: primaryTextColor, fontWeight: FontWeight.w600)),
+                subtitle: Text('Update your primary vault unlock PIN', style: TextStyle(color: mutedTextColor, fontSize: 12)),
+                trailing: Icon(Icons.chevron_right_rounded, color: mutedTextColor),
+                onTap: _handleChangeMasterPin,
+              ),
+              Divider(color: isDark ? AppTheme.darkDivider : AppTheme.lightDivider, height: 1),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),

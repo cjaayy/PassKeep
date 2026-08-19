@@ -8,6 +8,8 @@ import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/security/encryption_service.dart';
 import '../../../../core/security/key_derivation.dart';
 import '../../../../core/security/security_providers.dart';
+import '../../../vault/data/datasources/vault_local_datasource.dart';
+import '../../../vault/presentation/providers/vault_providers.dart';
 
 /// Authentication Status Lifecycle
 enum AuthStatus { loading, uninitialized, locked, authenticated }
@@ -67,14 +69,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final FlutterSecureStorage _secureStorage;
   final EncryptionService _encryptionService;
   final LocalAuthentication _localAuth;
+  final IVaultLocalDataSource? _localDataSource;
 
   AuthNotifier({
     required FlutterSecureStorage secureStorage,
     required EncryptionService encryptionService,
     required LocalAuthentication localAuth,
+    IVaultLocalDataSource? localDataSource,
   })  : _secureStorage = secureStorage,
         _encryptionService = encryptionService,
         _localAuth = localAuth,
+        _localDataSource = localDataSource,
         super(const AuthState.initial()) {
     checkAuthState();
   }
@@ -269,6 +274,162 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Updates the user's Master PIN:
+  /// 1. Verifies the [currentPin] against stored credentials.
+  /// 2. Derives the old master key to decrypt any existing items.
+  /// 3. Generates a new cryptographic salt and derives a new 256-bit master key.
+  /// 4. Re-encrypts all local vault items with the new master key and saves them to local storage.
+  /// 5. Saves the new salt, PIN hash, and master key to secure storage and activates the key.
+  /// 6. Synchronizes the new salt with Supabase user metadata if connected.
+  Future<bool> updateMasterPin(String currentPin, String newPin) async {
+    if (newPin.length != 6) {
+      state = state.copyWith(errorMessage: 'New PIN must be exactly 6 digits');
+      return false;
+    }
+
+    try {
+      final oldSalt = await _secureStorage.read(key: StorageKeys.masterPinSaltKey);
+      final storedHash = await _secureStorage.read(key: StorageKeys.masterPinHashKey);
+
+      if (oldSalt == null || storedHash == null) {
+        state = state.copyWith(errorMessage: 'Current PIN not found.');
+        return false;
+      }
+
+      final computedHash = sha256.convert(utf8.encode('$currentPin:$oldSalt')).toString();
+      if (computedHash != storedHash) {
+        state = state.copyWith(errorMessage: 'Current Master PIN is incorrect.');
+        return false;
+      }
+
+      final oldMasterKey = await KeyDerivation.deriveKey256Async(password: currentPin, salt: oldSalt);
+      final newSalt = KeyDerivation.generateRandomSalt(16);
+      final newMasterKey = await KeyDerivation.deriveKey256Async(password: newPin, salt: newSalt);
+      final newPinHash = sha256.convert(utf8.encode('$newPin:$newSalt')).toString();
+
+      // Re-encrypt local vault items if data source is available
+      if (_localDataSource != null) {
+        final items = await _localDataSource.getAllVaultItems();
+        for (final item in items) {
+          String? newCardDetailsEnc;
+          String newUsernameEncrypted = '';
+          String newPasswordEncrypted = '';
+          String? newPinEncrypted;
+          final newIv = _encryptionService.generateRandomIv();
+
+          // 1. Payment Card details
+          if (item.isCard && item.cardDetailsEnc != null && item.cardDetailsEnc!.isNotEmpty) {
+            try {
+              final decryptedCardJson = _encryptionService.decrypt(
+                cipherTextBase64: item.cardDetailsEnc!,
+                ivBase64: item.iv,
+                customKeyBase64: oldMasterKey,
+              );
+              newCardDetailsEnc = _encryptionService.encrypt(
+                decryptedCardJson,
+                customIvBase64: newIv,
+                customKeyBase64: newMasterKey,
+              ).cipherTextBase64;
+            } catch (_) {
+              newCardDetailsEnc = item.cardDetailsEnc;
+            }
+          }
+
+          // 2. Username / Identifier
+          if (item.usernameEncrypted.isNotEmpty) {
+            try {
+              final decryptedUser = _encryptionService.decrypt(
+                cipherTextBase64: item.usernameEncrypted,
+                ivBase64: item.iv,
+                customKeyBase64: oldMasterKey,
+              );
+              newUsernameEncrypted = _encryptionService.encrypt(
+                decryptedUser,
+                customIvBase64: newIv,
+                customKeyBase64: newMasterKey,
+              ).cipherTextBase64;
+            } catch (_) {
+              newUsernameEncrypted = item.usernameEncrypted;
+            }
+          }
+
+          // 3. Password / Card Number
+          if (item.passwordEncrypted.isNotEmpty) {
+            try {
+              final decryptedPass = _encryptionService.decrypt(
+                cipherTextBase64: item.passwordEncrypted,
+                ivBase64: item.iv,
+                customKeyBase64: oldMasterKey,
+              );
+              newPasswordEncrypted = _encryptionService.encrypt(
+                decryptedPass,
+                customIvBase64: newIv,
+                customKeyBase64: newMasterKey,
+              ).cipherTextBase64;
+            } catch (_) {
+              newPasswordEncrypted = item.passwordEncrypted;
+            }
+          }
+
+          // 4. PIN Encrypted
+          if (item.pinEncrypted != null && item.pinEncrypted!.isNotEmpty) {
+            try {
+              final decryptedPin = _encryptionService.decrypt(
+                cipherTextBase64: item.pinEncrypted!,
+                ivBase64: item.iv,
+                customKeyBase64: oldMasterKey,
+              );
+              newPinEncrypted = _encryptionService.encrypt(
+                decryptedPin,
+                customIvBase64: newIv,
+                customKeyBase64: newMasterKey,
+              ).cipherTextBase64;
+            } catch (_) {
+              newPinEncrypted = item.pinEncrypted;
+            }
+          }
+
+          final updatedItem = item.copyWith(
+            usernameEncrypted: newUsernameEncrypted,
+            passwordEncrypted: newPasswordEncrypted,
+            cardDetailsEnc: newCardDetailsEnc,
+            pinEncrypted: newPinEncrypted,
+            iv: newIv,
+            isSynced: false, // Flag for remote sync update
+            updatedAt: DateTime.now(),
+          );
+          await _localDataSource.saveVaultItem(updatedItem);
+        }
+      }
+
+      // Update secure storage with new credentials
+      await _secureStorage.write(key: StorageKeys.masterPinSaltKey, value: newSalt);
+      await _secureStorage.write(key: StorageKeys.masterPinHashKey, value: newPinHash);
+      await _encryptionService.saveMasterKeyToStorage(newMasterKey);
+      _encryptionService.setActiveKey(newMasterKey);
+
+      // Best effort: Update Supabase metadata if connected
+      try {
+        final currentUser = Supabase.instance.client.auth.currentUser;
+        if (currentUser != null) {
+          await Supabase.instance.client.auth.updateUser(
+            UserAttributes(data: {'master_pin_salt': newSalt}),
+          );
+        }
+      } catch (_) {}
+
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        masterKey: newMasterKey,
+        errorMessage: null,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(errorMessage: 'Failed to update Master PIN: ${e.toString()}');
+      return false;
+    }
+  }
+
   /// Sets whether the user explicitly selected offline-only local storage mode
   void setOfflineOnlyMode(bool isOffline) {
     state = state.copyWith(isOfflineOnlyMode: isOffline);
@@ -290,10 +451,12 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref
   final secureStorage = ref.watch(secureStorageProvider);
   final encryptionService = ref.watch(encryptionServiceProvider);
   final localAuth = ref.watch(localAuthProvider);
+  final localDataSource = ref.watch(vaultLocalDataSourceProvider);
 
   return AuthNotifier(
     secureStorage: secureStorage,
     encryptionService: encryptionService,
     localAuth: localAuth,
+    localDataSource: localDataSource,
   );
 });
